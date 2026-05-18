@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>podq Report</title>
+  <style>{{ css }}</style>
+</head>
+<body>
+  <nav class="sticky-nav">
+    <a href="#aired">Aired ({{ aired|length }})</a>
+    <a href="#processed">Processed ({{ processed|length }})</a>
+    <a href="#unprocessed">Unprocessed ({{ unprocessed|length }})</a>
+    <a href="#clusters">Clusters ({{ clusters|length }})</a>
+  </nav>
+
+  <main>
+    <details open id="aired">
+      <summary><h2>Aired Questions</h2></summary>
+      {% if aired %}
+      <table>
+        <thead>
+          <tr><th>Stem</th><th>Summary</th></tr>
+        </thead>
+        <tbody>
+          {% for item in aired %}
+          <tr>
+            <td class="stem">{{ item.stem }}</td>
+            <td>{{ item.summary }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="empty">No aired questions found.</p>
+      {% endif %}
+    </details>
+
+    <details open id="processed">
+      <summary><h2>Processed Questions</h2></summary>
+      {% if processed %}
+      <table>
+        <thead>
+          <tr>
+            <th>Stem</th>
+            <th>Summary</th>
+            <th>Keywords</th>
+            <th>Similarity</th>
+            <th>Novelty</th>
+            <th>Nearest Aired</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in processed %}
+          <tr{% if item.similarity_score >= threshold %} class="repeat"{% endif %}>
+            <td class="stem">{{ item.stem }}</td>
+            <td>{{ item.summary }}</td>
+            <td>{{ item.keywords | join(", ") }}</td>
+            <td>{{ "%.2f"|format(item.similarity_score) }}</td>
+            <td>{{ "%.2f"|format(item.novelty_score) }}</td>
+            <td>{{ item.nearest_aired_stem or "—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="note">Rows highlighted in amber have similarity &ge; {{ "%.2f"|format(threshold) }} and may be repeats.</p>
+      {% else %}
+      <p class="empty">No processed questions found.</p>
+      {% endif %}
+    </details>
+
+    <details open id="unprocessed">
+      <summary><h2>Unprocessed Files</h2></summary>
+      {% if unprocessed %}
+      <table>
+        <thead>
+          <tr><th>Stem</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {% for item in unprocessed %}
+          <tr>
+            <td class="stem">{{ item.stem }}</td>
+            <td>{{ item.status }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="empty">No unprocessed files.</p>
+      {% endif %}
+    </details>
+
+    <details open id="clusters">
+      <summary><h2>Similarity Clusters</h2></summary>
+      {% if clusters %}
+      <p class="note">Threshold: {{ "%.2f"|format(threshold) }}. Groups of questions asking substantially the same thing.</p>
+      <ul class="clusters">
+        {% for cluster in clusters %}
+        {% if cluster|length > 1 %}
+        <li class="cluster">
+          <strong>Cluster ({{ cluster|length }} items):</strong>
+          <ul>
+            {% for stem in cluster %}
+            <li>{{ stem }}</li>
+            {% endfor %}
+          </ul>
+        </li>
+        {% endif %}
+        {% endfor %}
+        {% set singletons = clusters | selectattr('length', 'equalto', 1) | list %}
+        {% if singletons %}
+        <li class="singletons">
+          <strong>Unique questions ({{ singletons|length }}):</strong>
+          <ul>
+            {% for cluster in clusters %}
+            {% if cluster|length == 1 %}
+            <li>{{ cluster[0] }}</li>
+            {% endif %}
+            {% endfor %}
+          </ul>
+        </li>
+        {% endif %}
+      </ul>
+      {% else %}
+      <p class="empty">No clusters — not enough processed questions with embeddings.</p>
+      {% endif %}
+    </details>
+  </main>
+
+  <script>{{ js }}</script>
+</body>
+</html>
