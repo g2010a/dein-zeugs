@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "podq"
 version = "1.0.0"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 dependencies = [
     "openai-whisper==20231117",
     "torch>=2.2,<3",
@@ -24,3 +24,6 @@ podq = "podq.cli:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["podq*"]
+
+[tool.uv.extra-build-dependencies]
+openai-whisper = ["setuptools"]
