@@ -9,6 +9,7 @@ from podq.paths import ProjectPaths
 from podq.transcription import transcribe_all_unprocessed
 from podq.analysis import analyze_all_unanalyzed
 from podq.embedding import EmbeddingModel
+from podq.models import ensure_llm_model
 from podq.report import render_report
 
 
@@ -35,6 +36,8 @@ def main(argv=None):
         paths = ProjectPaths(root)
         paths.ensure_dirs()
         config = Config.load_or_create(root)
+
+        ensure_llm_model(config.llm_model_path)
 
         lock_path = root / ".podq.lock"
         lock_file = open(lock_path, "w")
@@ -77,14 +80,14 @@ def main(argv=None):
 def _warm_models(log):
     log.info("Warming model caches...")
     try:
-        import whisper
-        whisper.load_model("medium")
-        log.info("Whisper medium loaded.")
+        from faster_whisper import WhisperModel
+        WhisperModel("medium", device="cpu", compute_type="int8")
+        log.info("Whisper model loaded.")
     except Exception as e:
         log.warning(f"Whisper warm failed: {e}")
     try:
-        from sentence_transformers import SentenceTransformer
-        SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
+        from fastembed import TextEmbedding
+        TextEmbedding("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
         log.info("Embedding model loaded.")
     except Exception as e:
         log.warning(f"Embedding warm failed: {e}")

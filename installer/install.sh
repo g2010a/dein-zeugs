@@ -17,14 +17,6 @@ fi
 
 echo "==> Detected macOS $os_version on arm64. Proceeding with install..."
 
-# Install Ollama
-echo "==> Installing Ollama..."
-curl -fsSL https://ollama.com/install.sh | sh
-
-# Pull the default model
-echo "==> Pulling llama3.2:3b (this may take a few minutes)..."
-ollama pull llama3.2:3b
-
 # Install podq binary
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BINARY="$SCRIPT_DIR/../dist/podq"
@@ -43,9 +35,10 @@ chmod +x /usr/local/bin/podq
 # Remove quarantine attribute so Gatekeeper allows it
 xattr -d com.apple.quarantine /usr/local/bin/podq 2>/dev/null || true
 
-# Pre-warm model caches so first real run is fast
-echo "==> Pre-warming model caches (downloads ~2 GB on first run)..."
+# Pre-warm Whisper and embedding model caches (~200 MB)
+echo "==> Pre-warming model caches..."
 /usr/local/bin/podq --warm-models
+echo "==> Note: the LLM model (~2 GB) will download automatically on first use."
 
 echo ""
 echo "==> podq installed successfully!"

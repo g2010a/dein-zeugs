@@ -59,32 +59,14 @@ from podq.analysis import keywords
 
 
 def test_keywords_comma_split():
-    with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_resp = MagicMock()
-        mock_resp.read.return_value = json.dumps(
-            {"response": "sport, ernährung, gesundheit, bewegung, fitness"}
-        ).encode()
-        mock_resp.__enter__ = lambda s: s
-        mock_resp.__exit__ = MagicMock(return_value=False)
-        mock_urlopen.return_value = mock_resp
-
-        result = keywords("some text", "llama3", "http://localhost:11434")
-
+    with patch("podq.analysis._infer", return_value="sport, ernährung, gesundheit, bewegung, fitness"):
+        result = keywords("some text", "/fake/model.gguf")
     assert result == ["sport", "ernährung", "gesundheit", "bewegung", "fitness"]
 
 
 def test_keywords_newline_handling():
-    with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_resp = MagicMock()
-        mock_resp.read.return_value = json.dumps(
-            {"response": "sport\nernährung\ngesundheit"}
-        ).encode()
-        mock_resp.__enter__ = lambda s: s
-        mock_resp.__exit__ = MagicMock(return_value=False)
-        mock_urlopen.return_value = mock_resp
-
-        result = keywords("some text", "llama3", "http://localhost:11434")
-
+    with patch("podq.analysis._infer", return_value="sport\nernährung\ngesundheit"):
+        result = keywords("some text", "/fake/model.gguf")
     assert "sport" in result
     assert "ernährung" in result
     assert "gesundheit" in result
@@ -114,8 +96,7 @@ def test_analyze_all_unanalyzed_json_schema(tmp_path):
     fake_embedding = _unit(np.array([0.5, 0.5, 0.0]))
 
     mock_config = MagicMock()
-    mock_config.ollama_model = "llama3"
-    mock_config.ollama_url = "http://localhost:11434"
+    mock_config.llm_model_path = "/fake/model.gguf"
 
     mock_model = MagicMock()
     mock_model.embed.return_value = fake_embedding

@@ -18,8 +18,10 @@ def test_transcriber_writes_txt_file(tmp_path):
     mp3 = paths.inbox / "episode1.mp3"
     mp3.touch()
 
+    seg = MagicMock()
+    seg.text = "  Hello world  "
     fake_model = MagicMock()
-    fake_model.transcribe.return_value = {"text": "  Hello world  "}
+    fake_model.transcribe.return_value = ([seg], MagicMock())
 
     t = WhisperTranscriber(model_name="medium", device="cpu")
     t._model = fake_model
@@ -57,8 +59,10 @@ def test_podq_force_cpu_env_var(monkeypatch):
 
 
 def _make_transcriber(text: str = "transcribed text") -> WhisperTranscriber:
+    seg = MagicMock()
+    seg.text = text
     fake_model = MagicMock()
-    fake_model.transcribe.return_value = {"text": text}
+    fake_model.transcribe.return_value = ([seg], MagicMock())
     t = WhisperTranscriber(model_name="medium", device="cpu")
     t._model = fake_model
     return t

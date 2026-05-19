@@ -8,23 +8,19 @@ log = logging.getLogger("podq")
 
 
 class EmbeddingModel:
-    def __init__(self, name: str = "paraphrase-multilingual-MiniLM-L12-v2"):
+    def __init__(self, name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"):
         self.name = name
         self._model = None
 
     def _load(self):
         if self._model is None:
-            try:
-                import torch
-                device = "mps" if torch.backends.mps.is_available() else "cpu"
-            except Exception:
-                device = "cpu"
-            from sentence_transformers import SentenceTransformer
-            self._model = SentenceTransformer(self.name, device=device)
+            from fastembed import TextEmbedding
+            self._model = TextEmbedding(self.name)
 
     def embed(self, text: str) -> np.ndarray:
         self._load()
-        vec = self._model.encode(text, convert_to_numpy=True).astype(np.float32)
+        embeddings = list(self._model.embed([text]))
+        vec = np.array(embeddings[0], dtype=np.float32)
         norm = np.linalg.norm(vec)
         if norm > 0:
             vec = vec / norm

@@ -22,44 +22,39 @@ KEYWORDS_PROMPT = (
     "Text: {transcript}"
 )
 
+_llm_instance = None
 
-def summarize(text: str, model: str, url: str, timeout: int = 120) -> str:
-    import urllib.request, urllib.error
-    payload = json.dumps({
-        "model": model,
-        "prompt": SUMMARY_PROMPT.format(transcript=text),
-        "stream": False,
-    }).encode()
-    req = urllib.request.Request(
-        f"{url}/api/generate",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-    )
+
+def _get_llm(model_path: str):
+    global _llm_instance
+    if _llm_instance is None:
+        from llama_cpp import Llama
+        _llm_instance = Llama(
+            model_path=model_path,
+            n_ctx=2048,
+            n_threads=4,
+            verbose=False,
+        )
+    return _llm_instance
+
+
+def _infer(prompt: str, model_path: str, max_tokens: int = 256) -> str:
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read())["response"].strip()
+        llm = _get_llm(model_path)
+        output = llm(prompt, max_tokens=max_tokens, stop=["\n\n", "###"])
+        return output["choices"][0]["text"].strip()
     except Exception as e:
-        log.error(f"Ollama unreachable ({e}). Is Ollama running? See installer step 3.")
+        log.error(f"LLM inference failed: {e}")
         return ""
 
 
-def keywords(text: str, model: str, url: str) -> list[str]:
-    import urllib.request
-    payload = json.dumps({
-        "model": model,
-        "prompt": KEYWORDS_PROMPT.format(transcript=text),
-        "stream": False,
-    }).encode()
-    req = urllib.request.Request(
-        f"{url}/api/generate",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            raw = json.loads(resp.read())["response"].strip()
-    except Exception as e:
-        log.warning(f"Keywords extraction failed: {e}")
+def summarize(text: str, model_path: str, timeout: int = 120) -> str:
+    return _infer(SUMMARY_PROMPT.format(transcript=text), model_path, max_tokens=256)
+
+
+def keywords(text: str, model_path: str) -> list[str]:
+    raw = _infer(KEYWORDS_PROMPT.format(transcript=text), model_path, max_tokens=64)
+    if not raw:
         return []
     parts = [p.strip().lower() for p in raw.replace("\n", ",").split(",") if p.strip()]
     seen = set()
@@ -100,8 +95,8 @@ def analyze_all_unanalyzed(
 
         emb = embedding_model.embed(text)
         sim, nov, nearest = score(emb, aired_embeddings)
-        summary = summarize(text, config.ollama_model, config.ollama_url)
-        kws = keywords(text, config.ollama_model, config.ollama_url)
+        summary = summarize(text, config.llm_model_path)
+        kws = keywords(text, config.llm_model_path)
 
         data = {
             "stem": stem,

@@ -86,6 +86,7 @@ def test_concurrent_lock_contention(tmp_path):
             results.append(("loser", result))
 
     with patch("fcntl.flock", side_effect=fake_flock), \
+         patch("podq.cli.ensure_llm_model"), \
          patch("podq.cli.transcribe_all_unprocessed", side_effect=mock_transcribe), \
          patch("podq.cli.analyze_all_unanalyzed", side_effect=mock_analyze), \
          patch("podq.cli.render_report", side_effect=mock_render), \
@@ -156,6 +157,7 @@ def test_concurrent_all_files_processed(tmp_path):
     mock_embedding = MagicMock()
 
     with patch("fcntl.flock", side_effect=fake_flock), \
+         patch("podq.cli.ensure_llm_model"), \
          patch("podq.cli.transcribe_all_unprocessed", side_effect=mock_transcribe), \
          patch("podq.cli.analyze_all_unanalyzed", side_effect=mock_analyze), \
          patch("podq.cli.render_report", side_effect=mock_render), \

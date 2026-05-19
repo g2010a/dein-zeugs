@@ -58,7 +58,8 @@ def test_cli_idempotency(tmp_path):
 
     mock_embedding = MagicMock()
 
-    with patch("podq.cli.transcribe_all_unprocessed", side_effect=mock_transcribe), \
+    with patch("podq.cli.ensure_llm_model"), \
+         patch("podq.cli.transcribe_all_unprocessed", side_effect=mock_transcribe), \
          patch("podq.cli.analyze_all_unanalyzed", side_effect=mock_analyze), \
          patch("podq.cli.render_report", side_effect=mock_render), \
          patch("podq.cli.EmbeddingModel", return_value=mock_embedding):
@@ -106,7 +107,8 @@ def test_cli_report_rendered_on_empty_inbox(tmp_path):
 
     mock_embedding = MagicMock()
 
-    with patch("podq.cli.transcribe_all_unprocessed", return_value=0), \
+    with patch("podq.cli.ensure_llm_model"), \
+         patch("podq.cli.transcribe_all_unprocessed", return_value=0), \
          patch("podq.cli.analyze_all_unanalyzed", return_value=0), \
          patch("podq.cli.render_report", side_effect=mock_render), \
          patch("podq.cli.EmbeddingModel", return_value=mock_embedding):
@@ -140,7 +142,8 @@ def test_cli_exception_returns_1(tmp_path):
     for d in ["inbox", "transcripts", "analysis", "aired", "reports"]:
         (root / d).mkdir(parents=True)
 
-    with patch("podq.cli.EmbeddingModel", side_effect=RuntimeError("model crash")):
+    with patch("podq.cli.ensure_llm_model"), \
+         patch("podq.cli.EmbeddingModel", side_effect=RuntimeError("model crash")):
         from podq.cli import main
         result = main([str(root)])
         assert result == 1

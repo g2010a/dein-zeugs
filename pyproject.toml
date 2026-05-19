@@ -7,10 +7,9 @@ name = "podq"
 version = "1.0.0"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-    "openai-whisper==20231117",
-    "torch>=2.2,<3",
-    "sentence-transformers>=2.7",
-    "ollama>=0.2",
+    "faster-whisper>=1.0",
+    "llama-cpp-python>=0.2.80",
+    "fastembed>=0.3",
     "jinja2>=3.1",
     "beautifulsoup4>=4.12",
 ]
@@ -24,6 +23,3 @@ podq = "podq.cli:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["podq*"]
-
-[tool.uv.extra-build-dependencies]
-openai-whisper = ["setuptools"]
