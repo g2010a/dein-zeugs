@@ -9,7 +9,7 @@ from podq.paths import ProjectPaths
 from podq.transcription import transcribe_all_unprocessed
 from podq.analysis import analyze_all_unanalyzed
 from podq.embedding import EmbeddingModel
-from podq.models import ensure_llm_model, ensure_whisper_model, patch_tqdm, clean_downloads
+from podq.models import ensure_llm_model, ensure_whisper_model, patch_tqdm, clean_downloads, clean_outputs
 from podq.report import render_report
 
 
@@ -22,21 +22,22 @@ def main(argv=None):
         description="podq — Podcast-Fraag-Verwolter",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
-            "Verwachten Orner-Üvversicht:\n"
-            "  {root}/inbox/        Smiet hier MP3-Episoden rinner\n"
-            "  {root}/transcripts/  Automaatsch makte Transskrippen\n"
-            "  {root}/analysis/     Automaatsch makte Analyse-JSON\n"
-            "  {root}/reports/      HTML-Bericht-Ütgoov\n"
+            "Erwartete Verzeichnisstruktur:\n"
+            "  {root}/inbox/        MP3-Episoden hier ablegen\n"
+            "  {root}/transcripts/  Automatisch erstellte Transkripte\n"
+            "  {root}/analysis/     Automatisch erstellte Analyse-JSON\n"
+            "  {root}/reports/      HTML-Berichtausgabe\n"
             "\n"
-            "podq leggt keen inbox/ an – maak em sülvst an un smiet MP3-Datein rinner, vördem du podq startest."
+            "podq legt kein inbox/ an – bitte selbst anlegen und MP3-Dateien hineinstellen, bevor podq gestartet wird."
         ),
     )
     parser.add_argument(
         "root", nargs="?",
-        help="Woortelmapp vum Projekt (mutt en inbox/-Unnermapp mit MP3-Datein enthoolen)",
+        help="Wurzelverzeichnis des Projekts (muss ein inbox/-Unterverzeichnis mit MP3-Dateien enthalten)",
     )
-    parser.add_argument("--warm-models", action="store_true", help="Modellspeicher vörmaken un denn afgahn")
-    parser.add_argument("--clean-downloads", action="store_true", help="Downloade Modelldatein wegsmieten un denn afgahn")
+    parser.add_argument("--warm-models", action="store_true", help="Modell-Cache aufwärmen und dann beenden")
+    parser.add_argument("--clean-downloads", action="store_true", help="Heruntergeladene Modelldateien löschen und dann beenden")
+    parser.add_argument("--clean-outputs", action="store_true", help="Ausgabeverzeichnisse leeren (transcripts, analysis, reports), inbox/ bleibt erhalten")
     parser.add_argument("--yes", "-y", action="store_true", help="Bestätigungsafraag överspringen")
     args = parser.parse_args(argv)
 
@@ -54,15 +55,21 @@ def main(argv=None):
 
     root = Path(args.root).resolve()
 
+    if args.clean_outputs:
+        config = _load_config_optional(args.root)
+        paths = ProjectPaths(root, transcripts_dir=config.transcripts_dir, analysis_dir=config.analysis_dir, reports_dir=config.reports_dir)
+        clean_outputs(paths, yes=args.yes)
+        return 0
+
     try:
-        paths = ProjectPaths(root)
-        paths.ensure_dirs()
         config = Config.load_or_create(root)
+        paths = ProjectPaths(root, transcripts_dir=config.transcripts_dir, analysis_dir=config.analysis_dir, reports_dir=config.reports_dir)
+        paths.ensure_dirs()
 
         if not paths.inbox.exists():
-            print(f"Keen inbox-Orner bi {paths.inbox} funnen.")
-            print("Leg em an un smiet MP3-Datein rinner, denn loop podq nochmal.")
-            print("Loop 'podq --help' för de Orner-Üvversicht.")
+            print(f"Kein inbox-Verzeichnis bei {paths.inbox} gefunden.")
+            print("Bitte anlegen und MP3-Dateien hineinstellen, dann podq erneut ausführen.")
+            print("'podq --help' für die Verzeichnisübersicht ausführen.")
             return 0
 
         ensure_llm_model(config.llm_model_path)
@@ -115,30 +122,30 @@ def _load_config_optional(root_arg: str | None) -> Config:
 
 
 def _warm_models(log, config: Config):
-    print("Modellspeicher warrt vörmakt...", flush=True)
+    print("Modell-Cache wird aufgewärmt...", flush=True)
 
     patch_tqdm()
 
-    print(f"[1/2] Whisper-Modell '{config.whisper_model}' (kann bi't eerste Maol downloadt warrn)...", flush=True)
+    print(f"[1/2] Whisper-Modell '{config.whisper_model}' (wird beim ersten Mal heruntergeladen)...", flush=True)
     try:
         ensure_whisper_model(config.whisper_model)
         from faster_whisper import WhisperModel
         WhisperModel(config.whisper_model, device="cpu", compute_type="int8")
-        print("[1/2] Whisper klaar.", flush=True)
+        print("[1/2] Whisper bereit.", flush=True)
     except Exception as e:
-        print(f"[1/2] Whisper misslungen: {e}", flush=True)
+        print(f"[1/2] Whisper fehlgeschlagen: {e}", flush=True)
         log.warning(f"Whisper warm failed: {e}")
 
-    print(f"[2/2] Embeddin-Modell '{config.embedding_model}' (kann bi't eerste Maol downloadt warrn)...", flush=True)
+    print(f"[2/2] Einbettungsmodell '{config.embedding_model}' (wird beim ersten Mal heruntergeladen)...", flush=True)
     try:
         from fastembed import TextEmbedding
         TextEmbedding(config.embedding_model)
-        print("[2/2] Embeddin-Modell klaar.", flush=True)
+        print("[2/2] Einbettungsmodell bereit.", flush=True)
     except Exception as e:
-        print(f"[2/2] Embeddin misslungen: {e}", flush=True)
+        print(f"[2/2] Einbettungsmodell fehlgeschlagen: {e}", flush=True)
         log.warning(f"Embedding warm failed: {e}")
 
-    print("Klaar. LLM-Modell (~2 GB) warrt bi't eerste Bruuk automaatsch downloadt.", flush=True)
+    print("Fertig. LLM-Modell (~2 GB) wird beim ersten Einsatz automatisch heruntergeladen.", flush=True)
 
 
 def _write_error_report(root: Path, tb: str):

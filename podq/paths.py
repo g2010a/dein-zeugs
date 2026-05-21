@@ -10,6 +10,9 @@ def normalize_stem(stem: str) -> str:
 @dataclass
 class ProjectPaths:
     root: Path
+    transcripts_dir: str = "transcripts"
+    analysis_dir: str = "analysis"
+    reports_dir: str = "reports"
 
     def __post_init__(self):
         if not self.root.exists():
@@ -21,11 +24,11 @@ class ProjectPaths:
 
     @property
     def transcripts(self) -> Path:
-        return self.root / "transcripts"
+        return self.root / self.transcripts_dir
 
     @property
     def analysis(self) -> Path:
-        return self.root / "analysis"
+        return self.root / self.analysis_dir
 
     @property
     def aired(self) -> Path:
@@ -33,7 +36,7 @@ class ProjectPaths:
 
     @property
     def reports(self) -> Path:
-        return self.root / "reports"
+        return self.root / self.reports_dir
 
     def ensure_dirs(self) -> None:
         self.transcripts.mkdir(parents=True, exist_ok=True)

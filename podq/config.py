@@ -16,6 +16,9 @@ class Config:
     whisper_model: str = "medium"
     embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     llm_model_path: str = field(default_factory=default_llm_path)
+    transcripts_dir: str = "transcripts"
+    analysis_dir: str = "analysis"
+    reports_dir: str = "reports"
 
     @classmethod
     def load_or_create(cls, root: Path) -> "Config":
@@ -26,6 +29,12 @@ class Config:
         with config_path.open("rb") as f:
             data = tomllib.load(f)
         analysis = data.get("analysis", {})
+        paths = data.get("paths", {})
+        path_overrides = {
+            k: paths[k]
+            for k in ("transcripts_dir", "analysis_dir", "reports_dir")
+            if k in paths
+        }
         return cls(
             similarity_threshold=analysis.get("similarity_threshold", 0.80),
             whisper_model=analysis.get("whisper_model", "medium"),
@@ -34,4 +43,5 @@ class Config:
                 "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
             ),
             llm_model_path=analysis.get("llm_model_path", default_llm_path()),
+            **path_overrides,
         )

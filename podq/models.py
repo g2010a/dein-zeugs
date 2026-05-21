@@ -107,18 +107,18 @@ def clean_downloads(config, yes: bool = False) -> None:
 
     present = [(p, label) for p, label in targets if p.exists()]
     if not present:
-        print("Keen downloade Modellen funnen. Nix to wegsmieten.")
+        print("Keine heruntergeladenen Modelle gefunden. Nichts zu löschen.")
         return
 
-    print("De folgenden warrn wegsmeten:")
+    print("Die folgenden Dateien werden gelöscht:")
     for path, label in present:
         mb = _dir_size(path) >> 20
         print(f"  {label}: {path}  ({mb} MB)")
 
     if not yes:
-        answer = input("Wegsmieten? [j/N] ").strip().lower()
+        answer = input("Löschen? [j/N] ").strip().lower()
         if answer not in ("j", "y"):
-            print("Afbraken.")
+            print("Abgebrochen.")
             return
 
     total_freed = 0
@@ -131,12 +131,56 @@ def clean_downloads(config, yes: bool = False) -> None:
             else:
                 path.unlink(missing_ok=True)
             total_freed += size
-            print(f"  {label} wegsmeten ({size >> 20} MB frigeven)")
+            print(f"  {label} gelöscht ({size >> 20} MB freigegeben)")
         except Exception as e:
-            print(f"  Fehler bi't Wegsmieten vun {path}: {e}")
+            print(f"  Fehler beim Löschen von {path}: {e}")
             failed = True
 
-    print(f"\nIn't Ganze frigeven: {total_freed >> 20} MB")
+    print(f"\nInsgesamt freigegeben: {total_freed >> 20} MB")
+    if failed:
+        raise SystemExit(1)
+
+
+def clean_outputs(paths, yes: bool = False) -> None:
+    """Delete all generated output dirs (transcripts, analysis, reports), preserving inbox/."""
+    import shutil
+
+    targets = [
+        (paths.transcripts, "Transcripts"),
+        (paths.analysis, "Analysis"),
+        (paths.reports, "Reports"),
+    ]
+
+    present = [(p, label) for p, label in targets if p.exists()]
+    if not present:
+        print("Keine Ausgabedateien gefunden. Nichts zu löschen.")
+        return
+
+    print("Die folgenden Ausgabeverzeichnisse werden geleert:")
+    for path, label in present:
+        mb = _dir_size(path) >> 20
+        print(f"  {label}: {path}  ({mb} MB)")
+
+    if not yes:
+        answer = input("Leeren? [j/N] ").strip().lower()
+        if answer not in ("j",):
+            print("Abgebrochen.")
+            return
+
+    total_freed = 0
+    failed = False
+    for path, label in present:
+        size = _dir_size(path)
+        try:
+            shutil.rmtree(path)
+            path.mkdir(parents=True, exist_ok=True)
+            total_freed += size
+            print(f"  {label} geleert ({size >> 20} MB freigegeben)")
+        except Exception as e:
+            print(f"  Fehler beim Leeren von {path}: {e}")
+            failed = True
+
+    print(f"\nInsgesamt freigegeben: {total_freed >> 20} MB")
     if failed:
         raise SystemExit(1)
 
