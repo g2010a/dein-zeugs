@@ -10,16 +10,18 @@ from podq import __version__
 log = logging.getLogger("podq")
 
 SUMMARY_PROMPT = (
-    "Fasse die folgende Hörerfrage in 2-3 Sätzen zusammen. "
-    "Antworte auf Deutsch. "
-    "Wenn der Text nicht auf Deutsch ist, antworte in der Originalsprache. "
-    "Text: {transcript}"
+    "Fasse die folgende Hörerfrage in 1-2 Sätzen zusammen. "
+    "Verwende NUR Informationen aus dem Text – erfinde nichts dazu. "
+    "Antworte auf Deutsch. Wenn der Text nicht auf Deutsch ist, antworte in der Originalsprache.\n"
+    "Text: {transcript}\n"
+    "Zusammenfassung:"
 )
 
 KEYWORDS_PROMPT = (
-    "Extrahiere 5-8 Schlüsselwörter aus dem folgenden Text. "
-    "Gib nur die Schlüsselwörter kommagetrennt zurück, keine Erklärungen. "
-    "Text: {transcript}"
+    "Extrahiere 3-5 einzelne Schlüsselwörter (keine Sätze oder Phrasen) aus dem folgenden Text. "
+    "Gib nur die Wörter kommagetrennt zurück, keine Erklärungen.\n"
+    "Text: {transcript}\n"
+    "Schlüsselwörter:"
 )
 
 _llm_instance = None
@@ -49,7 +51,7 @@ def _infer(prompt: str, model_path: str, max_tokens: int = 256) -> str:
 
 
 def summarize(text: str, model_path: str) -> str:
-    return _infer(SUMMARY_PROMPT.format(transcript=text), model_path, max_tokens=256)
+    return _infer(SUMMARY_PROMPT.format(transcript=text), model_path, max_tokens=100)
 
 
 def keywords(text: str, model_path: str) -> list[str]:
@@ -57,7 +59,7 @@ def keywords(text: str, model_path: str) -> list[str]:
     if not raw:
         return []
     parts = [p.strip().lower() for p in raw.replace("\n", ",").split(",") if p.strip()]
-    return list(dict.fromkeys(parts))[:8]
+    return list(dict.fromkeys(parts))[:5]
 
 
 def score(
