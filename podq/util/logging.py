@@ -1,4 +1,5 @@
 import logging
+import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -13,7 +14,7 @@ def setup_logging() -> logging.Logger:
     fh = RotatingFileHandler(log_path, maxBytes=5*1024*1024, backupCount=3)
     fh.setLevel(logging.DEBUG)
 
-    sh = logging.StreamHandler()
+    sh = logging.StreamHandler(sys.stdout)
     sh.setLevel(logging.INFO)
 
     fmt = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
