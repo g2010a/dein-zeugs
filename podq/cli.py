@@ -6,8 +6,7 @@ from pathlib import Path
 
 from podq.config import Config
 from podq.paths import ProjectPaths
-from podq.transcription import transcribe_all_unprocessed
-from podq.analysis import analyze_all_unanalyzed
+from podq.analysis import process_all_unprocessed
 from podq.embedding import EmbeddingModel
 from podq.models import ensure_llm_model, ensure_whisper_model, patch_tqdm, clean_downloads, clean_outputs
 from podq.report import render_report
@@ -23,9 +22,8 @@ def main(argv=None):
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Erwartete Verzeichnisstruktur:\n"
-            "  {root}/inbox/        MP3-Episoden hier ablegen\n"
-            "  {root}/transcripts/  Automatisch erstellte Transkripte\n"
-            "  {root}/analysis/     Automatisch erstellte Analyse-JSON\n"
+            "  {root}/inbox/         MP3-Episoden hier ablegen\n"
+            "  {root}/analysis/      Automatisch erstellte YAML-Analysen (inkl. Transkript)\n"
             "  {root}/reports/      HTML-Berichtausgabe\n"
             "\n"
             "podq legt kein inbox/ an – bitte selbst anlegen und MP3-Dateien hineinstellen, bevor podq gestartet wird."
@@ -57,13 +55,13 @@ def main(argv=None):
 
     if args.clean_outputs:
         config = _load_config_optional(args.root)
-        paths = ProjectPaths(root, transcripts_dir=config.transcripts_dir, analysis_dir=config.analysis_dir, reports_dir=config.reports_dir)
+        paths = ProjectPaths(root, analysis_dir=config.analysis_dir, reports_dir=config.reports_dir)
         clean_outputs(paths, yes=args.yes)
         return 0
 
     try:
         config = Config.load_or_create(root)
-        paths = ProjectPaths(root, transcripts_dir=config.transcripts_dir, analysis_dir=config.analysis_dir, reports_dir=config.reports_dir)
+        paths = ProjectPaths(root, analysis_dir=config.analysis_dir, reports_dir=config.reports_dir)
         paths.ensure_dirs()
 
         if not paths.inbox.exists():
@@ -90,10 +88,9 @@ def main(argv=None):
 
             MAX_DRAIN = 10
             for i in range(MAX_DRAIN):
-                transcribed = transcribe_all_unprocessed(paths, config)
-                analyzed = analyze_all_unanalyzed(paths, config, embedding_model)
-                log.info(f"Drain pass {i+1}: transcribed={transcribed}, analyzed={analyzed}")
-                if transcribed == 0 and analyzed == 0:
+                processed = process_all_unprocessed(paths, config, embedding_model)
+                log.info(f"Drain pass {i+1}: processed={processed}")
+                if processed == 0:
                     break
 
             render_report(paths, config)

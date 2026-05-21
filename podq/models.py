@@ -146,7 +146,6 @@ def clean_outputs(paths, yes: bool = False) -> None:
     import shutil
 
     targets = [
-        (paths.transcripts, "Transcripts"),
         (paths.analysis, "Analysis"),
         (paths.reports, "Reports"),
     ]

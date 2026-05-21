@@ -1,6 +1,6 @@
-import json
 import logging
 import os
+import yaml
 import subprocess
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
@@ -23,22 +23,22 @@ def render_report(paths: ProjectPaths, config) -> Path:
     aired_items = []
     for mp3 in sorted(paths.aired.glob("*.mp3")):
         stem = normalize_stem(mp3.stem)
-        analysis_path = paths.analysis / f"{stem}.json"
-        if analysis_path.exists():
-            data = json.loads(analysis_path.read_text())
+        yaml_path = paths.analysis / f"{stem}.yaml"
+        if yaml_path.exists():
+            data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
             summary = data.get("summary", "(no analysis)")
         else:
             summary = "(no analysis)"
         aired_items.append({"stem": stem, "summary": summary})
 
-    # 2. Processed questions (both .txt and .json)
+    # 2. Processed questions (yaml)
     processed_items = []
-    for txt in sorted(paths.transcripts.glob("*.txt")):
-        stem = normalize_stem(txt.stem)
-        analysis_path = paths.analysis / f"{stem}.json"
-        if not analysis_path.exists():
+    aired_stems = {normalize_stem(mp3.stem) for mp3 in paths.aired.glob("*.mp3")} if paths.aired.exists() else set()
+    for yaml_file in sorted(paths.analysis.glob("*.yaml")):
+        stem = normalize_stem(yaml_file.stem)
+        if stem in aired_stems:
             continue
-        data = json.loads(analysis_path.read_text())
+        data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
         processed_items.append({
             "stem": stem,
             "summary": data.get("summary", ""),
@@ -53,22 +53,19 @@ def render_report(paths: ProjectPaths, config) -> Path:
     unprocessed_items = []
     for mp3 in sorted(paths.inbox.glob("*.mp3")) if paths.inbox.exists() else []:
         stem = normalize_stem(mp3.stem)
-        txt_path = paths.transcripts / f"{stem}.txt"
-        analysis_path = paths.analysis / f"{stem}.json"
-        if not txt_path.exists():
-            unprocessed_items.append({"stem": stem, "status": "no transcript"})
-        elif not analysis_path.exists():
-            unprocessed_items.append({"stem": stem, "status": "transcribed, awaiting analysis"})
+        yaml_path = paths.analysis / f"{stem}.yaml"
+        if not yaml_path.exists():
+            unprocessed_items.append({"stem": stem, "status": "not yet processed"})
 
     # 4. Clusters — reload with embeddings
     processed_with_emb = []
-    for txt in paths.transcripts.glob("*.txt"):
-        stem = normalize_stem(txt.stem)
-        ap = paths.analysis / f"{stem}.json"
-        if ap.exists():
-            d = json.loads(ap.read_text())
+    for yaml_file in paths.analysis.glob("*.yaml"):
+        try:
+            d = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
             if "embedding" in d:
                 processed_with_emb.append(d)
+        except Exception:
+            continue
     clusters = build_clusters(processed_with_emb, config.similarity_threshold)
 
     # Inline CSS and JS

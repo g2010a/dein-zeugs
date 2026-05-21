@@ -1,9 +1,9 @@
-import json
 import logging
+import yaml
 import numpy as np
 from datetime import datetime, timezone
 from podq.util.atomic import atomic_write
-from podq.paths import ProjectPaths, unanalyzed_transcripts, normalize_stem
+from podq.paths import ProjectPaths, unprocessed_audio, normalize_stem
 from podq.embedding import EmbeddingModel
 from podq import __version__
 
@@ -75,40 +75,44 @@ def score(
     return best_sim, round(1.0 - best_sim, 6), best_stem
 
 
-def analyze_all_unanalyzed(
+def process_all_unprocessed(
     paths: ProjectPaths,
     config,
     embedding_model: EmbeddingModel,
 ) -> int:
+    from podq.transcription import WhisperTranscriber
+    transcriber = WhisperTranscriber(model_name=config.whisper_model)
+
     aired = embedding_model.aired_corpus(paths)
     aired_embeddings = [(stem, emb) for stem, _text, emb in aired]
 
     count = 0
-    for txt_path in unanalyzed_transcripts(paths):
-        stem = normalize_stem(txt_path.stem)
-        log.info(f"Analyzing {stem}")
-        text = txt_path.read_text(encoding="utf-8")
+    for mp3 in unprocessed_audio(paths):
+        stem = normalize_stem(mp3.stem)
+        log.info(f"Transcribing and analyzing {mp3.name}")
+        text = transcriber.transcribe(mp3)
 
         emb = embedding_model.embed(text)
         sim, nov, nearest = score(emb, aired_embeddings)
-        summary = summarize(text, config.llm_model_path)
+        summary_text = summarize(text, config.llm_model_path)
         kws = keywords(text, config.llm_model_path)
 
         data = {
             "stem": stem,
-            "summary": summary,
+            "transcript": text,
+            "summary": summary_text,
             "keywords": kws,
             "similarity_score": sim,
             "novelty_score": nov,
             "nearest_aired_stem": nearest,
-            "embedding": emb.tolist(),
             "language": "auto",
             "podq_version": __version__,
             "analyzed_at": datetime.now(timezone.utc).isoformat(),
+            "embedding": emb.tolist(),
         }
-        atomic_write(
-            paths.analysis / f"{stem}.json",
-            json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8"),
-        )
+        yaml_bytes = yaml.dump(
+            data, allow_unicode=True, default_flow_style=False, sort_keys=False
+        ).encode("utf-8")
+        atomic_write(paths.analysis / f"{stem}.yaml", yaml_bytes)
         count += 1
     return count

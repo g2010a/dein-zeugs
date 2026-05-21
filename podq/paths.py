@@ -10,7 +10,6 @@ def normalize_stem(stem: str) -> str:
 @dataclass
 class ProjectPaths:
     root: Path
-    transcripts_dir: str = "transcripts"
     analysis_dir: str = "analysis"
     reports_dir: str = "reports"
 
@@ -21,10 +20,6 @@ class ProjectPaths:
     @property
     def inbox(self) -> Path:
         return self.root / "inbox"
-
-    @property
-    def transcripts(self) -> Path:
-        return self.root / self.transcripts_dir
 
     @property
     def analysis(self) -> Path:
@@ -39,7 +34,6 @@ class ProjectPaths:
         return self.root / self.reports_dir
 
     def ensure_dirs(self) -> None:
-        self.transcripts.mkdir(parents=True, exist_ok=True)
         self.analysis.mkdir(parents=True, exist_ok=True)
         self.reports.mkdir(parents=True, exist_ok=True)
 
@@ -50,17 +44,6 @@ def unprocessed_audio(paths: ProjectPaths) -> list[Path]:
     result = []
     for mp3 in paths.inbox.glob("*.mp3"):
         stem = normalize_stem(mp3.stem)
-        if not (paths.transcripts / f"{stem}.txt").exists():
+        if not (paths.analysis / f"{stem}.yaml").exists():
             result.append(mp3)
-    return result
-
-
-def unanalyzed_transcripts(paths: ProjectPaths) -> list[Path]:
-    if not paths.transcripts.exists():
-        return []
-    result = []
-    for txt in paths.transcripts.glob("*.txt"):
-        stem = normalize_stem(txt.stem)
-        if not (paths.analysis / f"{stem}.json").exists():
-            result.append(txt)
     return result

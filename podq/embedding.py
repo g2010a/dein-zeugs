@@ -1,5 +1,6 @@
 import json
 import logging
+import yaml
 import numpy as np
 from pathlib import Path
 from podq.paths import ProjectPaths, normalize_stem
@@ -27,7 +28,7 @@ class EmbeddingModel:
         return vec
 
     def aired_corpus(self, paths: ProjectPaths) -> list[tuple[str, str, np.ndarray]]:
-        """Returns (stem, text, embedding) for aired MP3s that have transcripts."""
+        """Returns (stem, text, embedding) for aired MP3s that have analysis YAMLs."""
         cache_path = paths.analysis / ".aired_cache.json"
         try:
             cache = json.loads(cache_path.read_text()) if cache_path.exists() else {}
@@ -38,14 +39,21 @@ class EmbeddingModel:
         new_cache = {}
         for mp3 in sorted(paths.aired.glob("*.mp3")):
             stem = normalize_stem(mp3.stem)
-            txt_path = paths.transcripts / f"{stem}.txt"
-            if not txt_path.exists():
+            yaml_path = paths.analysis / f"{stem}.yaml"
+            if not yaml_path.exists():
                 continue
-            text = txt_path.read_text(encoding="utf-8")
-            mtime = str(txt_path.stat().st_mtime)
+            try:
+                data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            text = data.get("transcript", "")
+            mtime = str(yaml_path.stat().st_mtime)
             cache_key = f"{stem}:{mtime}"
             if cache_key in cache:
                 emb = np.array(cache[cache_key], dtype=np.float32)
+            elif "embedding" in data:
+                emb = np.array(data["embedding"], dtype=np.float32)
+                cache[cache_key] = data["embedding"]
             else:
                 emb = self.embed(text)
                 cache[cache_key] = emb.tolist()

@@ -16,7 +16,6 @@ class Config:
     whisper_model: str = "medium"
     embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     llm_model_path: str = field(default_factory=default_llm_path)
-    transcripts_dir: str = "transcripts"
     analysis_dir: str = "analysis"
     reports_dir: str = "reports"
 
@@ -32,7 +31,7 @@ class Config:
         paths = data.get("paths", {})
         path_overrides = {
             k: paths[k]
-            for k in ("transcripts_dir", "analysis_dir", "reports_dir")
+            for k in ("analysis_dir", "reports_dir")
             if k in paths
         }
         return cls(
