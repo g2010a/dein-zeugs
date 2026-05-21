@@ -19,25 +19,25 @@ def main(argv=None):
     log = setup_logging()
 
     parser = argparse.ArgumentParser(
-        description="podq — podcast question manager",
+        description="podq — Podcast-Fraag-Verwolter",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
-            "Expected directory layout:\n"
-            "  {root}/inbox/        Drop MP3 episode files here\n"
-            "  {root}/transcripts/  Auto-generated transcripts\n"
-            "  {root}/analysis/     Auto-generated analysis JSON\n"
-            "  {root}/reports/      HTML report output\n"
+            "Verwachten Orner-Üvversicht:\n"
+            "  {root}/inbox/        Smiet hier MP3-Episoden rinner\n"
+            "  {root}/transcripts/  Automaatsch makte Transskrippen\n"
+            "  {root}/analysis/     Automaatsch makte Analyse-JSON\n"
+            "  {root}/reports/      HTML-Bericht-Ütgoov\n"
             "\n"
-            "podq does not create inbox/ — create it and drop MP3 files in before running."
+            "podq leggt keen inbox/ an – maak em sülvst an un smiet MP3-Datein rinner, vördem du podq startest."
         ),
     )
     parser.add_argument(
         "root", nargs="?",
-        help="Root project directory (must contain an inbox/ subdirectory with MP3 files)",
+        help="Woortelmapp vum Projekt (mutt en inbox/-Unnermapp mit MP3-Datein enthoolen)",
     )
-    parser.add_argument("--warm-models", action="store_true", help="Pre-warm model caches and exit")
-    parser.add_argument("--clean-downloads", action="store_true", help="Delete downloaded model files and exit")
-    parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompts")
+    parser.add_argument("--warm-models", action="store_true", help="Modellspeicher vörmaken un denn afgahn")
+    parser.add_argument("--clean-downloads", action="store_true", help="Downloade Modelldatein wegsmieten un denn afgahn")
+    parser.add_argument("--yes", "-y", action="store_true", help="Bestätigungsafraag överspringen")
     args = parser.parse_args(argv)
 
     # For model-management flags, load config from root if provided, else use defaults.
@@ -60,9 +60,9 @@ def main(argv=None):
         config = Config.load_or_create(root)
 
         if not paths.inbox.exists():
-            print(f"No inbox directory found at: {paths.inbox}")
-            print("Create it and add MP3 files, then run podq again.")
-            print("Run 'podq --help' for the expected directory layout.")
+            print(f"Keen inbox-Orner bi {paths.inbox} funnen.")
+            print("Leg em an un smiet MP3-Datein rinner, denn loop podq nochmal.")
+            print("Loop 'podq --help' för de Orner-Üvversicht.")
             return 0
 
         ensure_llm_model(config.llm_model_path)
@@ -115,30 +115,30 @@ def _load_config_optional(root_arg: str | None) -> Config:
 
 
 def _warm_models(log, config: Config):
-    print("Warming model caches...", flush=True)
+    print("Modellspeicher warrt vörmakt...", flush=True)
 
     patch_tqdm()
 
-    print(f"[1/2] Whisper model '{config.whisper_model}' (may download on first run)...", flush=True)
+    print(f"[1/2] Whisper-Modell '{config.whisper_model}' (kann bi't eerste Maol downloadt warrn)...", flush=True)
     try:
         ensure_whisper_model(config.whisper_model)
         from faster_whisper import WhisperModel
         WhisperModel(config.whisper_model, device="cpu", compute_type="int8")
-        print("[1/2] Whisper ready.", flush=True)
+        print("[1/2] Whisper klaar.", flush=True)
     except Exception as e:
-        print(f"[1/2] Whisper failed: {e}", flush=True)
+        print(f"[1/2] Whisper misslungen: {e}", flush=True)
         log.warning(f"Whisper warm failed: {e}")
 
-    print(f"[2/2] Embedding model '{config.embedding_model}' (may download on first run)...", flush=True)
+    print(f"[2/2] Embeddin-Modell '{config.embedding_model}' (kann bi't eerste Maol downloadt warrn)...", flush=True)
     try:
         from fastembed import TextEmbedding
         TextEmbedding(config.embedding_model)
-        print("[2/2] Embedding model ready.", flush=True)
+        print("[2/2] Embeddin-Modell klaar.", flush=True)
     except Exception as e:
-        print(f"[2/2] Embedding failed: {e}", flush=True)
+        print(f"[2/2] Embeddin misslungen: {e}", flush=True)
         log.warning(f"Embedding warm failed: {e}")
 
-    print("Done. LLM model (~2 GB) will download automatically on first use.", flush=True)
+    print("Klaar. LLM-Modell (~2 GB) warrt bi't eerste Bruuk automaatsch downloadt.", flush=True)
 
 
 def _write_error_report(root: Path, tb: str):

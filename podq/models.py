@@ -107,18 +107,18 @@ def clean_downloads(config, yes: bool = False) -> None:
 
     present = [(p, label) for p, label in targets if p.exists()]
     if not present:
-        print("No downloaded models found. Nothing to delete.")
+        print("Keen downloade Modellen funnen. Nix to wegsmieten.")
         return
 
-    print("The following will be deleted:")
+    print("De folgenden warrn wegsmeten:")
     for path, label in present:
         mb = _dir_size(path) >> 20
         print(f"  {label}: {path}  ({mb} MB)")
 
     if not yes:
-        answer = input("Delete? [y/N] ").strip().lower()
-        if answer != "y":
-            print("Aborted.")
+        answer = input("Wegsmieten? [j/N] ").strip().lower()
+        if answer not in ("j", "y"):
+            print("Afbraken.")
             return
 
     total_freed = 0
@@ -131,12 +131,12 @@ def clean_downloads(config, yes: bool = False) -> None:
             else:
                 path.unlink(missing_ok=True)
             total_freed += size
-            print(f"  Deleted {label} ({size >> 20} MB freed)")
+            print(f"  {label} wegsmeten ({size >> 20} MB frigeven)")
         except Exception as e:
-            print(f"  Failed to delete {path}: {e}")
+            print(f"  Fehler bi't Wegsmieten vun {path}: {e}")
             failed = True
 
-    print(f"\nTotal freed: {total_freed >> 20} MB")
+    print(f"\nIn't Ganze frigeven: {total_freed >> 20} MB")
     if failed:
         raise SystemExit(1)
 
