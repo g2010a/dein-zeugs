@@ -1,4 +1,4 @@
-import json
+import yaml
 import numpy as np
 import pytest
 from pathlib import Path
@@ -73,23 +73,20 @@ def test_keywords_newline_handling():
 
 
 # ---------------------------------------------------------------------------
-# analyze_all_unanalyzed() — JSON schema test
+# process_all_unprocessed() — YAML schema test
 # ---------------------------------------------------------------------------
 
-from podq.analysis import analyze_all_unanalyzed
+from podq.analysis import process_all_unprocessed
 from podq.paths import ProjectPaths
 
 
-def test_analyze_all_unanalyzed_json_schema(tmp_path):
-    # Set up directory structure
+def test_process_all_unprocessed_yaml_schema(tmp_path):
     (tmp_path / "inbox").mkdir()
-    (tmp_path / "transcripts").mkdir()
     (tmp_path / "analysis").mkdir()
     (tmp_path / "aired").mkdir()
-    (tmp_path / "reports").mkdir()
 
-    transcript_text = "Wie oft sollte man Sport machen?"
-    (tmp_path / "transcripts" / "ep001.txt").write_text(transcript_text, encoding="utf-8")
+    mp3 = tmp_path / "inbox" / "ep001.mp3"
+    mp3.touch()
 
     paths = ProjectPaths(root=tmp_path)
 
@@ -97,29 +94,36 @@ def test_analyze_all_unanalyzed_json_schema(tmp_path):
 
     mock_config = MagicMock()
     mock_config.llm_model_path = "/fake/model.gguf"
+    mock_config.whisper_model = "medium"
 
     mock_model = MagicMock()
     mock_model.embed.return_value = fake_embedding
     mock_model.aired_corpus.return_value = []
 
+    mock_transcriber = MagicMock()
+    mock_transcriber.transcribe.return_value = "Wie oft sollte man Sport machen?"
+
     with patch("podq.analysis.summarize", return_value="Eine Frage über Sport."), \
-         patch("podq.analysis.keywords", return_value=["sport", "fitness"]):
-        count = analyze_all_unanalyzed(paths, mock_config, mock_model)
+         patch("podq.analysis.keywords", return_value=["sport", "fitness"]), \
+         patch("podq.transcription.WhisperTranscriber", return_value=mock_transcriber):
+        count = process_all_unprocessed(paths, mock_config, mock_model)
 
     assert count == 1
 
-    result_file = tmp_path / "analysis" / "ep001.json"
+    result_file = tmp_path / "analysis" / "ep001.yaml"
     assert result_file.exists()
-    data = json.loads(result_file.read_text(encoding="utf-8"))
+    data = yaml.safe_load(result_file.read_text(encoding="utf-8"))
 
     required_fields = [
-        "stem", "summary", "keywords", "similarity_score", "novelty_score",
-        "nearest_aired_stem", "embedding", "language", "podq_version", "analyzed_at",
+        "stem", "transcript", "summary", "keywords", "similarity_score",
+        "novelty_score", "nearest_aired_stem", "embedding",
+        "language", "podq_version", "analyzed_at",
     ]
     for field in required_fields:
         assert field in data, f"Missing field: {field}"
 
     assert data["stem"] == "ep001"
+    assert data["transcript"] == "Wie oft sollte man Sport machen?"
     assert data["language"] == "auto"
     assert isinstance(data["embedding"], list)
     assert isinstance(data["keywords"], list)

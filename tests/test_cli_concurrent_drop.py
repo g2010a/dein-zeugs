@@ -10,7 +10,7 @@ os.environ["PODQ_NO_OPEN"] = "1"
 
 def make_fixture_root(tmp_path: Path) -> Path:
     root = tmp_path / "podq_root"
-    for d in ["inbox", "transcripts", "analysis", "aired", "reports"]:
+    for d in ["inbox", "analysis", "aired", "reports"]:
         (root / d).mkdir(parents=True)
     for i in range(3):
         (root / "inbox" / f"caller_{i:03d}.mp3").touch()
@@ -53,10 +53,7 @@ def test_concurrent_lock_contention(tmp_path):
             with flock_state_lock:
                 flock_state["held"] = False
 
-    def mock_transcribe(paths, config):
-        return 0
-
-    def mock_analyze(paths, config, embedding_model):
+    def mock_process(paths, config, embedding_model):
         return 0
 
     def mock_render(paths, config):
@@ -87,8 +84,7 @@ def test_concurrent_lock_contention(tmp_path):
 
     with patch("fcntl.flock", side_effect=fake_flock), \
          patch("podq.cli.ensure_llm_model"), \
-         patch("podq.cli.transcribe_all_unprocessed", side_effect=mock_transcribe), \
-         patch("podq.cli.analyze_all_unanalyzed", side_effect=mock_analyze), \
+         patch("podq.cli.process_all_unprocessed", side_effect=mock_process), \
          patch("podq.cli.render_report", side_effect=mock_render), \
          patch("podq.cli.EmbeddingModel", return_value=mock_embedding):
 
@@ -133,21 +129,18 @@ def test_concurrent_all_files_processed(tmp_path):
 
     call_number = [0]
 
-    def mock_transcribe(paths, config):
+    def mock_process(paths, config, embedding_model):
         n = call_number[0]
         call_number[0] += 1
         drain_counts[0] += 1
         if n == 0:
             # First pass: process all 3 files
             for mp3 in sorted(paths.inbox.glob("*.mp3")):
-                txt = paths.transcripts / (mp3.stem + ".txt")
-                txt.write_text("question")
+                yaml_path = paths.analysis / (mp3.stem + ".yaml")
+                yaml_path.write_text(f"stem: {mp3.stem}\n")
                 processed_files.append(mp3.stem)
             return 3
         return 0  # subsequent passes: nothing to do
-
-    def mock_analyze(paths, config, embedding_model):
-        return 0
 
     def mock_render(paths, config):
         report = paths.reports / "report.html"
@@ -158,8 +151,7 @@ def test_concurrent_all_files_processed(tmp_path):
 
     with patch("fcntl.flock", side_effect=fake_flock), \
          patch("podq.cli.ensure_llm_model"), \
-         patch("podq.cli.transcribe_all_unprocessed", side_effect=mock_transcribe), \
-         patch("podq.cli.analyze_all_unanalyzed", side_effect=mock_analyze), \
+         patch("podq.cli.process_all_unprocessed", side_effect=mock_process), \
          patch("podq.cli.render_report", side_effect=mock_render), \
          patch("podq.cli.EmbeddingModel", return_value=mock_embedding):
 

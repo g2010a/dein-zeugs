@@ -1,4 +1,4 @@
-import json
+import yaml
 import os
 import re
 import pytest
@@ -10,7 +10,7 @@ os.environ["PODQ_NO_OPEN"] = "1"
 
 def make_fixture_root(tmp_path: Path) -> Path:
     root = tmp_path / "podq_root"
-    for d in ["inbox", "transcripts", "analysis", "aired", "reports"]:
+    for d in ["inbox", "analysis", "aired", "reports"]:
         (root / d).mkdir(parents=True)
     return root
 
@@ -24,27 +24,27 @@ def test_report_sections(tmp_path):
 
     # Aired: has MP3 + analysis
     (root / "aired" / "aired_q1.mp3").touch()
-    (root / "transcripts" / "aired_q1.txt").write_text("Wie oft Sport machen?")
-    (root / "analysis" / "aired_q1.json").write_text(json.dumps({
-        "stem": "aired_q1", "summary": "Frage über Sportfrequenz",
+    (root / "analysis" / "aired_q1.yaml").write_text(yaml.dump({
+        "stem": "aired_q1", "transcript": "Wie oft Sport machen?",
+        "summary": "Frage über Sportfrequenz",
         "keywords": ["sport"], "similarity_score": 0.0, "novelty_score": 1.0,
         "nearest_aired_stem": None, "embedding": [0.1] * 384,
         "language": "de", "podq_version": "1.0.0",
         "analyzed_at": "2026-05-18T00:00:00+00:00"
-    }))
+    }, allow_unicode=True, default_flow_style=False, sort_keys=False))
 
-    # Processed: inbox MP3 with transcript + analysis
+    # Processed: inbox MP3 with analysis
     (root / "inbox" / "caller_001.mp3").touch()
-    (root / "transcripts" / "caller_001.txt").write_text("Was empfehlen Sie gegen Erkältung?")
-    (root / "analysis" / "caller_001.json").write_text(json.dumps({
-        "stem": "caller_001", "summary": "Frage über Erkältungsmittel",
+    (root / "analysis" / "caller_001.yaml").write_text(yaml.dump({
+        "stem": "caller_001", "transcript": "Was empfehlen Sie gegen Erkältung?",
+        "summary": "Frage über Erkältungsmittel",
         "keywords": ["erkältung"], "similarity_score": 0.3, "novelty_score": 0.7,
         "nearest_aired_stem": "aired_q1", "embedding": [0.2] * 384,
         "language": "de", "podq_version": "1.0.0",
         "analyzed_at": "2026-05-18T00:00:00+00:00"
-    }))
+    }, allow_unicode=True, default_flow_style=False, sort_keys=False))
 
-    # Unprocessed: inbox MP3 with no transcript
+    # Unprocessed: inbox MP3 with no YAML in analysis
     (root / "inbox" / "caller_002.mp3").touch()
 
     config = Config()
@@ -80,14 +80,14 @@ def test_repeat_row_highlighted(tmp_path):
 
     # High similarity item — should be marked as repeat
     (root / "inbox" / "caller_high.mp3").touch()
-    (root / "transcripts" / "caller_high.txt").write_text("Wiederholfrage")
-    (root / "analysis" / "caller_high.json").write_text(json.dumps({
-        "stem": "caller_high", "summary": "Wiederholte Frage",
+    (root / "analysis" / "caller_high.yaml").write_text(yaml.dump({
+        "stem": "caller_high", "transcript": "Wiederholfrage",
+        "summary": "Wiederholte Frage",
         "keywords": ["wiederholung"], "similarity_score": 0.9, "novelty_score": 0.1,
         "nearest_aired_stem": "some_aired", "embedding": [0.9] * 384,
         "language": "de", "podq_version": "1.0.0",
         "analyzed_at": "2026-05-18T00:00:00+00:00"
-    }))
+    }, allow_unicode=True, default_flow_style=False, sort_keys=False))
 
     config = Config()
     paths = ProjectPaths(root)
@@ -125,14 +125,14 @@ def test_clusters_section_present(tmp_path):
     emb = [1.0] + [0.0] * 383
     for stem in ["q_a", "q_b"]:
         (root / "inbox" / f"{stem}.mp3").touch()
-        (root / "transcripts" / f"{stem}.txt").write_text("same question")
-        (root / "analysis" / f"{stem}.json").write_text(json.dumps({
-            "stem": stem, "summary": "Same thing",
+        (root / "analysis" / f"{stem}.yaml").write_text(yaml.dump({
+            "stem": stem, "transcript": "same question",
+            "summary": "Same thing",
             "keywords": ["same"], "similarity_score": 0.0, "novelty_score": 1.0,
             "nearest_aired_stem": None, "embedding": emb,
             "language": "de", "podq_version": "1.0.0",
             "analyzed_at": "2026-05-18T00:00:00+00:00"
-        }))
+        }, allow_unicode=True, default_flow_style=False, sort_keys=False))
 
     config = Config()
     paths = ProjectPaths(root)
@@ -158,14 +158,14 @@ def test_processed_sorted_by_novelty_desc(tmp_path):
     ]
     for stem, novelty in items:
         (root / "inbox" / f"{stem}.mp3").touch()
-        (root / "transcripts" / f"{stem}.txt").write_text("question")
-        (root / "analysis" / f"{stem}.json").write_text(json.dumps({
-            "stem": stem, "summary": "A question",
+        (root / "analysis" / f"{stem}.yaml").write_text(yaml.dump({
+            "stem": stem, "transcript": "question",
+            "summary": "A question",
             "keywords": [], "similarity_score": 1.0 - novelty, "novelty_score": novelty,
             "nearest_aired_stem": None, "embedding": [0.1] * 384,
             "language": "de", "podq_version": "1.0.0",
             "analyzed_at": "2026-05-18T00:00:00+00:00"
-        }))
+        }, allow_unicode=True, default_flow_style=False, sort_keys=False))
 
     config = Config()
     paths = ProjectPaths(root)

@@ -1,52 +1,31 @@
 import unicodedata
 from pathlib import Path
-from podq.paths import ProjectPaths, normalize_stem, unprocessed_audio, unanalyzed_transcripts
+from podq.paths import ProjectPaths, normalize_stem, unprocessed_audio
 
 
 def _make_paths(tmp_path: Path) -> ProjectPaths:
     (tmp_path / "inbox").mkdir()
-    (tmp_path / "transcripts").mkdir()
     (tmp_path / "analysis").mkdir()
     return ProjectPaths(root=tmp_path)
 
 
-def test_unprocessed_audio_returns_mp3s_without_transcripts(tmp_path):
+def test_unprocessed_audio_returns_mp3s_without_yaml(tmp_path):
     paths = _make_paths(tmp_path)
     (paths.inbox / "episode1.mp3").touch()
     (paths.inbox / "episode2.mp3").touch()
-    (paths.transcripts / "episode1.txt").touch()
+    (paths.analysis / "episode1.yaml").touch()  # already processed
 
     result = unprocessed_audio(paths)
     stems = {p.stem for p in result}
     assert stems == {"episode2"}
 
 
-def test_unprocessed_audio_skips_mp3s_with_transcripts(tmp_path):
+def test_unprocessed_audio_skips_mp3s_with_yaml(tmp_path):
     paths = _make_paths(tmp_path)
     (paths.inbox / "episode.mp3").touch()
-    (paths.transcripts / "episode.txt").touch()
+    (paths.analysis / "episode.yaml").touch()
 
     result = unprocessed_audio(paths)
-    assert result == []
-
-
-def test_unanalyzed_transcripts_returns_txt_without_json(tmp_path):
-    paths = _make_paths(tmp_path)
-    (paths.transcripts / "ep1.txt").touch()
-    (paths.transcripts / "ep2.txt").touch()
-    (paths.analysis / "ep1.json").touch()
-
-    result = unanalyzed_transcripts(paths)
-    stems = {p.stem for p in result}
-    assert stems == {"ep2"}
-
-
-def test_unanalyzed_transcripts_skips_ones_with_json(tmp_path):
-    paths = _make_paths(tmp_path)
-    (paths.transcripts / "ep.txt").touch()
-    (paths.analysis / "ep.json").touch()
-
-    result = unanalyzed_transcripts(paths)
     assert result == []
 
 

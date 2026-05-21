@@ -8,7 +8,7 @@ os.environ["PODQ_NO_OPEN"] = "1"
 
 def make_fixture_root(tmp_path: Path) -> Path:
     root = tmp_path / "podq_root"
-    for d in ["inbox", "transcripts", "analysis", "aired", "reports"]:
+    for d in ["inbox", "analysis", "aired", "reports"]:
         (root / d).mkdir(parents=True)
     (root / "inbox" / "caller_001.mp3").touch()
     return root
@@ -17,37 +17,25 @@ def make_fixture_root(tmp_path: Path) -> Path:
 def test_cli_idempotency(tmp_path):
     """Running main twice: first run does work, second run (already processed) skips work."""
     root = make_fixture_root(tmp_path)
-
-    transcribe_calls = []
-    analyze_calls = []
+    process_calls = []
     render_calls = []
+    run_state = {"n": 0}
 
-    # run_state tracks total invocation count across both main() calls
-    run_state = {"transcribe_n": 0, "analyze_n": 0}
-
-    def mock_transcribe(paths, config):
-        run_state["transcribe_n"] += 1
-        if run_state["transcribe_n"] == 1:
-            (paths.transcripts / "caller_001.txt").write_text("Test question")
-            transcribe_calls.append(1)
+    def mock_process(paths, config, embedding_model):
+        run_state["n"] += 1
+        if run_state["n"] == 1:
+            import yaml
+            data = {"stem": "caller_001", "transcript": "Test question",
+                    "summary": "Test", "keywords": [],
+                    "similarity_score": 0.0, "novelty_score": 1.0,
+                    "nearest_aired_stem": None, "embedding": [0.1] * 384,
+                    "language": "de", "podq_version": "1.0.0",
+                    "analyzed_at": "2026-05-18T00:00:00+00:00"}
+            (paths.analysis / "caller_001.yaml").write_text(
+                yaml.dump(data, allow_unicode=True, default_flow_style=False, sort_keys=False))
+            process_calls.append(1)
             return 1
-        transcribe_calls.append(0)
-        return 0
-
-    def mock_analyze(paths, config, embedding_model):
-        import json
-        run_state["analyze_n"] += 1
-        if run_state["analyze_n"] == 1:
-            (paths.analysis / "caller_001.json").write_text(json.dumps({
-                "stem": "caller_001", "summary": "Test", "keywords": [],
-                "similarity_score": 0.0, "novelty_score": 1.0,
-                "nearest_aired_stem": None, "embedding": [0.1] * 384,
-                "language": "de", "podq_version": "1.0.0",
-                "analyzed_at": "2026-05-18T00:00:00+00:00",
-            }))
-            analyze_calls.append(1)
-            return 1
-        analyze_calls.append(0)
+        process_calls.append(0)
         return 0
 
     def mock_render(paths, config):
@@ -59,42 +47,31 @@ def test_cli_idempotency(tmp_path):
     mock_embedding = MagicMock()
 
     with patch("podq.cli.ensure_llm_model"), \
-         patch("podq.cli.transcribe_all_unprocessed", side_effect=mock_transcribe), \
-         patch("podq.cli.analyze_all_unanalyzed", side_effect=mock_analyze), \
+         patch("podq.cli.process_all_unprocessed", side_effect=mock_process), \
          patch("podq.cli.render_report", side_effect=mock_render), \
          patch("podq.cli.EmbeddingModel", return_value=mock_embedding):
 
         from podq.cli import main
 
-        # First run: does transcription + analysis
         result1 = main([str(root)])
         assert result1 == 0
-        assert len(transcribe_calls) >= 1
-        assert len(analyze_calls) >= 1
+        assert len(process_calls) >= 1
         assert len(render_calls) == 1
 
-        # Reset call counters for second run
-        transcribe_calls.clear()
-        analyze_calls.clear()
+        process_calls.clear()
         render_calls.clear()
 
-        # Second run: inbox already processed, drain exits immediately
         result2 = main([str(root)])
         assert result2 == 0
-        # Drain loop should call transcribe/analyze at least once (then see 0 work and stop)
-        assert len(transcribe_calls) >= 1
-        assert len(analyze_calls) >= 1
-        # Report is always rendered
+        assert len(process_calls) >= 1
         assert len(render_calls) == 1
-        # Second run saw no new work
-        assert transcribe_calls[0] == 0
-        assert analyze_calls[0] == 0
+        assert process_calls[0] == 0
 
 
 def test_cli_report_rendered_on_empty_inbox(tmp_path):
     """Report is rendered even when inbox is empty."""
     root = tmp_path / "empty_root"
-    for d in ["inbox", "transcripts", "analysis", "aired", "reports"]:
+    for d in ["inbox", "analysis", "aired", "reports"]:
         (root / d).mkdir(parents=True)
 
     render_calls = []
@@ -108,8 +85,7 @@ def test_cli_report_rendered_on_empty_inbox(tmp_path):
     mock_embedding = MagicMock()
 
     with patch("podq.cli.ensure_llm_model"), \
-         patch("podq.cli.transcribe_all_unprocessed", return_value=0), \
-         patch("podq.cli.analyze_all_unanalyzed", return_value=0), \
+         patch("podq.cli.process_all_unprocessed", return_value=0), \
          patch("podq.cli.render_report", side_effect=mock_render), \
          patch("podq.cli.EmbeddingModel", return_value=mock_embedding):
 
@@ -139,7 +115,7 @@ def test_cli_missing_root_exits_nonzero():
 def test_cli_exception_returns_1(tmp_path):
     """Top-level exception causes exit code 1 and error report written."""
     root = tmp_path / "err_root"
-    for d in ["inbox", "transcripts", "analysis", "aired", "reports"]:
+    for d in ["inbox", "analysis", "aired", "reports"]:
         (root / d).mkdir(parents=True)
 
     with patch("podq.cli.ensure_llm_model"), \
