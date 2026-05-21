@@ -160,3 +160,15 @@ def test_cli_clean_downloads_flag():
         from podq.config import Config
         assert isinstance(args[0], Config)
         assert kwargs.get("yes", False) is False
+
+
+def test_cli_no_inbox_exits_0_without_model_download(tmp_path):
+    """If root exists but inbox/ does not, exit 0 before downloading any model."""
+    root = tmp_path / "no_inbox_root"
+    root.mkdir()
+
+    with patch("podq.cli.ensure_llm_model") as mock_llm:
+        from podq.cli import main
+        result = main([str(root)])
+    assert result == 0
+    mock_llm.assert_not_called()

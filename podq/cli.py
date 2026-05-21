@@ -18,8 +18,23 @@ def main(argv=None):
     from podq.util.logging import setup_logging
     log = setup_logging()
 
-    parser = argparse.ArgumentParser(description="podq — podcast question manager")
-    parser.add_argument("root", nargs="?", help="Root directory")
+    parser = argparse.ArgumentParser(
+        description="podq — podcast question manager",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Expected directory layout:\n"
+            "  {root}/inbox/        Drop MP3 episode files here\n"
+            "  {root}/transcripts/  Auto-generated transcripts\n"
+            "  {root}/analysis/     Auto-generated analysis JSON\n"
+            "  {root}/reports/      HTML report output\n"
+            "\n"
+            "podq does not create inbox/ — create it and drop MP3 files in before running."
+        ),
+    )
+    parser.add_argument(
+        "root", nargs="?",
+        help="Root project directory (must contain an inbox/ subdirectory with MP3 files)",
+    )
     parser.add_argument("--warm-models", action="store_true", help="Pre-warm model caches and exit")
     parser.add_argument("--clean-downloads", action="store_true", help="Delete downloaded model files and exit")
     parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompts")
@@ -43,6 +58,12 @@ def main(argv=None):
         paths = ProjectPaths(root)
         paths.ensure_dirs()
         config = Config.load_or_create(root)
+
+        if not paths.inbox.exists():
+            print(f"No inbox directory found at: {paths.inbox}")
+            print("Create it and add MP3 files, then run podq again.")
+            print("Run 'podq --help' for the expected directory layout.")
+            return 0
 
         ensure_llm_model(config.llm_model_path)
 
