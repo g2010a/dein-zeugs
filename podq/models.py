@@ -1,8 +1,39 @@
 import logging
+import sys
 import urllib.request
 from pathlib import Path
 
 log = logging.getLogger("podq")
+
+
+def _make_forced_tqdm():
+    import tqdm as _tqdm_module
+
+    class _ForcedTqdm(_tqdm_module.tqdm):
+        """Force tqdm display even when stdout/stderr is not a TTY (e.g. PyInstaller binary)."""
+        def __init__(self, *args, **kwargs):
+            kwargs['disable'] = False
+            kwargs.setdefault('file', sys.stderr)
+            kwargs.setdefault('dynamic_ncols', True)
+            super().__init__(*args, **kwargs)
+
+    return _ForcedTqdm
+
+
+def patch_tqdm() -> None:
+    """Monkey-patch tqdm so downloads inside third-party libs show progress bars."""
+    import tqdm
+    import tqdm.auto
+    ForcedTqdm = _make_forced_tqdm()
+    tqdm.tqdm = ForcedTqdm
+    tqdm.auto.tqdm = ForcedTqdm
+    # Patch already-imported fastembed internals if present
+    try:
+        import fastembed.common.model_management as _fmm
+        if hasattr(_fmm, 'tqdm'):
+            _fmm.tqdm = ForcedTqdm
+    except Exception:
+        pass
 
 _MODEL_DIR = Path.home() / ".podq" / "models"
 _MODEL_FILE = "Llama-3.2-3B-Instruct-Q4_K_M.gguf"
@@ -10,6 +41,20 @@ _MODEL_URL = (
     "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF"
     "/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf"
 )
+
+
+def ensure_whisper_model(model_name: str = "medium") -> None:
+    """Pre-download the faster-whisper model with a visible progress bar."""
+    import huggingface_hub
+    repo_id = f"Systran/faster-whisper-{model_name}"
+    try:
+        huggingface_hub.snapshot_download(repo_id, local_files_only=True)
+        return  # already cached
+    except Exception:
+        pass
+    log.info(f"Downloading Whisper {model_name} model...")
+    huggingface_hub.enable_progress_bars()
+    huggingface_hub.snapshot_download(repo_id, tqdm_class=_make_forced_tqdm())
 
 
 def default_llm_path() -> str:

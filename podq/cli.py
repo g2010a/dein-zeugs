@@ -9,7 +9,7 @@ from podq.paths import ProjectPaths
 from podq.transcription import transcribe_all_unprocessed
 from podq.analysis import analyze_all_unanalyzed
 from podq.embedding import EmbeddingModel
-from podq.models import ensure_llm_model
+from podq.models import ensure_llm_model, ensure_whisper_model, patch_tqdm
 from podq.report import render_report
 
 
@@ -80,8 +80,11 @@ def main(argv=None):
 def _warm_models(log):
     print("Warming model caches...", flush=True)
 
+    patch_tqdm()
+
     print("[1/2] Whisper model (may download ~150 MB on first run)...", flush=True)
     try:
+        ensure_whisper_model("medium")
         from faster_whisper import WhisperModel
         WhisperModel("medium", device="cpu", compute_type="int8")
         print("[1/2] Whisper ready.", flush=True)
