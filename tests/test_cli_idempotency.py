@@ -147,3 +147,16 @@ def test_cli_exception_returns_1(tmp_path):
         from podq.cli import main
         result = main([str(root)])
         assert result == 1
+
+
+def test_cli_clean_downloads_flag():
+    """--clean-downloads calls clean_downloads with a Config and returns 0."""
+    with patch("podq.cli.clean_downloads") as mock_clean:
+        from podq.cli import main
+        result = main(["--clean-downloads"])
+        assert result == 0
+        mock_clean.assert_called_once()
+        args, kwargs = mock_clean.call_args
+        from podq.config import Config
+        assert isinstance(args[0], Config)
+        assert kwargs.get("yes", False) is False

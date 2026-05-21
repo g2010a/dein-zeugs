@@ -9,7 +9,7 @@ from podq.paths import ProjectPaths
 from podq.transcription import transcribe_all_unprocessed
 from podq.analysis import analyze_all_unanalyzed
 from podq.embedding import EmbeddingModel
-from podq.models import ensure_llm_model, ensure_whisper_model, patch_tqdm
+from podq.models import ensure_llm_model, ensure_whisper_model, patch_tqdm, clean_downloads
 from podq.report import render_report
 
 
@@ -21,10 +21,17 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="podq — podcast question manager")
     parser.add_argument("root", nargs="?", help="Root directory")
     parser.add_argument("--warm-models", action="store_true", help="Pre-warm model caches and exit")
+    parser.add_argument("--clean-downloads", action="store_true", help="Delete downloaded model files and exit")
+    parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompts")
     args = parser.parse_args(argv)
 
-    if args.warm_models:
-        _warm_models(log)
+    # For model-management flags, load config from root if provided, else use defaults.
+    if args.warm_models or args.clean_downloads:
+        config = _load_config_optional(args.root)
+        if args.warm_models:
+            _warm_models(log, config)
+        else:
+            clean_downloads(config, yes=args.yes)
         return 0
 
     if not args.root:
@@ -77,25 +84,34 @@ def main(argv=None):
         return 1
 
 
-def _warm_models(log):
+def _load_config_optional(root_arg: str | None) -> Config:
+    if root_arg:
+        try:
+            return Config.load_or_create(Path(root_arg).resolve())
+        except Exception:
+            pass
+    return Config()
+
+
+def _warm_models(log, config: Config):
     print("Warming model caches...", flush=True)
 
     patch_tqdm()
 
-    print("[1/2] Whisper model (may download ~150 MB on first run)...", flush=True)
+    print(f"[1/2] Whisper model '{config.whisper_model}' (may download on first run)...", flush=True)
     try:
-        ensure_whisper_model("medium")
+        ensure_whisper_model(config.whisper_model)
         from faster_whisper import WhisperModel
-        WhisperModel("medium", device="cpu", compute_type="int8")
+        WhisperModel(config.whisper_model, device="cpu", compute_type="int8")
         print("[1/2] Whisper ready.", flush=True)
     except Exception as e:
         print(f"[1/2] Whisper failed: {e}", flush=True)
         log.warning(f"Whisper warm failed: {e}")
 
-    print("[2/2] Embedding model (may download ~50 MB on first run)...", flush=True)
+    print(f"[2/2] Embedding model '{config.embedding_model}' (may download on first run)...", flush=True)
     try:
         from fastembed import TextEmbedding
-        TextEmbedding("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+        TextEmbedding(config.embedding_model)
         print("[2/2] Embedding model ready.", flush=True)
     except Exception as e:
         print(f"[2/2] Embedding failed: {e}", flush=True)

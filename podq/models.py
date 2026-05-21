@@ -72,6 +72,75 @@ def ensure_llm_model(model_path: str) -> str:
     return str(path)
 
 
+def _dir_size(path: Path) -> int:
+    """Return total bytes of a file or directory tree, 0 if missing."""
+    if not path.exists():
+        return 0
+    if path.is_file():
+        return path.stat().st_size
+    return sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
+
+
+def clean_downloads(config, yes: bool = False) -> None:
+    """Delete all downloaded model files, optionally prompting for confirmation."""
+    import shutil
+
+    try:
+        import huggingface_hub.constants as _hfc
+        hf_cache = Path(_hfc.HF_HUB_CACHE)
+    except Exception:
+        hf_cache = Path.home() / ".cache" / "huggingface" / "hub"
+
+    llm_path = Path(config.llm_model_path)
+    llm_tmp = llm_path.with_suffix(".tmp")
+
+    emb_parts = config.embedding_model.split("/", 1)
+    emb_dir_name = "models--" + "--".join(emb_parts)
+
+    targets = [
+        (llm_path, f"LLM model file ({llm_path.name})"),
+        (llm_tmp, f"LLM temp orphan ({llm_tmp.name})"),
+        (hf_cache / f"models--Systran--faster-whisper-{config.whisper_model}", f"Whisper model ({config.whisper_model})"),
+        (hf_cache / emb_dir_name, f"Embedding model HF cache ({config.embedding_model})"),
+        (Path.home() / ".cache" / "fastembed", "Embedding model fastembed cache"),
+    ]
+
+    present = [(p, label) for p, label in targets if p.exists()]
+    if not present:
+        print("No downloaded models found. Nothing to delete.")
+        return
+
+    print("The following will be deleted:")
+    for path, label in present:
+        mb = _dir_size(path) >> 20
+        print(f"  {label}: {path}  ({mb} MB)")
+
+    if not yes:
+        answer = input("Delete? [y/N] ").strip().lower()
+        if answer != "y":
+            print("Aborted.")
+            return
+
+    total_freed = 0
+    failed = False
+    for path, label in present:
+        size = _dir_size(path)
+        try:
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                path.unlink(missing_ok=True)
+            total_freed += size
+            print(f"  Deleted {label} ({size >> 20} MB freed)")
+        except Exception as e:
+            print(f"  Failed to delete {path}: {e}")
+            failed = True
+
+    print(f"\nTotal freed: {total_freed >> 20} MB")
+    if failed:
+        raise SystemExit(1)
+
+
 def _download_with_progress(url: str, dest: Path) -> None:
     tmp = dest.with_suffix(".tmp")
     try:
