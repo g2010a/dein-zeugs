@@ -78,19 +78,27 @@ def main(argv=None):
 
 
 def _warm_models(log):
-    log.info("Warming model caches...")
+    print("Warming model caches...", flush=True)
+
+    print("[1/2] Whisper model (may download ~150 MB on first run)...", flush=True)
     try:
         from faster_whisper import WhisperModel
         WhisperModel("medium", device="cpu", compute_type="int8")
-        log.info("Whisper model loaded.")
+        print("[1/2] Whisper ready.", flush=True)
     except Exception as e:
+        print(f"[1/2] Whisper failed: {e}", flush=True)
         log.warning(f"Whisper warm failed: {e}")
+
+    print("[2/2] Embedding model (may download ~50 MB on first run)...", flush=True)
     try:
         from fastembed import TextEmbedding
         TextEmbedding("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-        log.info("Embedding model loaded.")
+        print("[2/2] Embedding model ready.", flush=True)
     except Exception as e:
+        print(f"[2/2] Embedding failed: {e}", flush=True)
         log.warning(f"Embedding warm failed: {e}")
+
+    print("Done. LLM model (~2 GB) will download automatically on first use.", flush=True)
 
 
 def _write_error_report(root: Path, tb: str):
