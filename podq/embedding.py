@@ -41,16 +41,15 @@ class EmbeddingModel:
             txt_path = paths.transcripts / f"{stem}.txt"
             if not txt_path.exists():
                 continue
+            text = txt_path.read_text(encoding="utf-8")
             mtime = str(txt_path.stat().st_mtime)
             cache_key = f"{stem}:{mtime}"
             if cache_key in cache:
                 emb = np.array(cache[cache_key], dtype=np.float32)
             else:
-                text = txt_path.read_text(encoding="utf-8")
                 emb = self.embed(text)
                 cache[cache_key] = emb.tolist()
             new_cache[cache_key] = cache[cache_key]
-            text = txt_path.read_text(encoding="utf-8")
             result.append((stem, text, emb))
 
         try:

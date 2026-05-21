@@ -48,7 +48,7 @@ def _infer(prompt: str, model_path: str, max_tokens: int = 256) -> str:
         return ""
 
 
-def summarize(text: str, model_path: str, timeout: int = 120) -> str:
+def summarize(text: str, model_path: str) -> str:
     return _infer(SUMMARY_PROMPT.format(transcript=text), model_path, max_tokens=256)
 
 
@@ -57,13 +57,7 @@ def keywords(text: str, model_path: str) -> list[str]:
     if not raw:
         return []
     parts = [p.strip().lower() for p in raw.replace("\n", ",").split(",") if p.strip()]
-    seen = set()
-    result = []
-    for p in parts:
-        if p not in seen:
-            seen.add(p)
-            result.append(p)
-    return result[:8]
+    return list(dict.fromkeys(parts))[:8]
 
 
 def score(

@@ -23,7 +23,7 @@ def test_transcriber_writes_txt_file(tmp_path):
     fake_model = MagicMock()
     fake_model.transcribe.return_value = ([seg], MagicMock())
 
-    t = WhisperTranscriber(model_name="medium", device="cpu")
+    t = WhisperTranscriber(model_name="medium")
     t._model = fake_model
 
     text = t.transcribe(mp3)
@@ -52,17 +52,11 @@ def test_transcribe_all_unprocessed_returns_correct_count(tmp_path):
     assert (paths.transcripts / "ep3.txt").exists()
 
 
-def test_podq_force_cpu_env_var(monkeypatch):
-    monkeypatch.setenv("PODQ_FORCE_CPU", "1")
-    t = WhisperTranscriber()
-    assert t._device == "cpu"
-
-
 def _make_transcriber(text: str = "transcribed text") -> WhisperTranscriber:
     seg = MagicMock()
     seg.text = text
     fake_model = MagicMock()
     fake_model.transcribe.return_value = ([seg], MagicMock())
-    t = WhisperTranscriber(model_name="medium", device="cpu")
+    t = WhisperTranscriber(model_name="medium")
     t._model = fake_model
     return t

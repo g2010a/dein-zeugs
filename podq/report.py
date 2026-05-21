@@ -7,6 +7,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from podq.paths import ProjectPaths, normalize_stem
 from podq.clustering import build_clusters
+from podq.util.atomic import atomic_write
 
 log = logging.getLogger("podq")
 
@@ -50,7 +51,7 @@ def render_report(paths: ProjectPaths, config) -> Path:
 
     # 3. Unprocessed
     unprocessed_items = []
-    for mp3 in sorted(paths.inbox.glob("*.mp3")):
+    for mp3 in sorted(paths.inbox.glob("*.mp3")) if paths.inbox.exists() else []:
         stem = normalize_stem(mp3.stem)
         txt_path = paths.transcripts / f"{stem}.txt"
         analysis_path = paths.analysis / f"{stem}.json"
@@ -86,7 +87,6 @@ def render_report(paths: ProjectPaths, config) -> Path:
         js=js,
     )
 
-    from podq.util.atomic import atomic_write
     atomic_write(report_path, html.encode("utf-8"))
 
     if not os.environ.get("PODQ_NO_OPEN"):
