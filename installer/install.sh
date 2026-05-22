@@ -35,10 +35,9 @@ chmod +x /usr/local/bin/podq
 # Remove quarantine attribute so Gatekeeper allows it
 xattr -d com.apple.quarantine /usr/local/bin/podq 2>/dev/null || true
 
-# Pre-warm Whisper and embedding model caches (~200 MB)
+# Pre-warm Whisper, embedding, and LLM model caches
 echo "==> Pre-warming model caches..."
 /usr/local/bin/podq --warm-models
-echo "==> Note: the LLM model (~2 GB) will download automatically on first use."
 
 echo ""
 echo "==> podq installed successfully!"
