@@ -4,6 +4,8 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
+from podq.analysis import compute_intra_batch_scores
+
 
 def _unit(v: np.ndarray) -> np.ndarray:
     norm = np.linalg.norm(v)
@@ -118,6 +120,7 @@ def test_process_all_unprocessed_yaml_schema(tmp_path):
         "stem", "transcript", "summary", "keywords", "similarity_score",
         "novelty_score", "nearest_aired_stem", "embedding",
         "language", "podq_version", "analyzed_at",
+        "intra_batch_uniqueness", "standout_score",
     ]
     for field in required_fields:
         assert field in data, f"Missing field: {field}"
@@ -129,3 +132,142 @@ def test_process_all_unprocessed_yaml_schema(tmp_path):
     assert isinstance(data["keywords"], list)
     assert isinstance(data["similarity_score"], float)
     assert isinstance(data["novelty_score"], float)
+    assert isinstance(data["intra_batch_uniqueness"], float)
+    assert isinstance(data["standout_score"], float)
+
+
+# ---------------------------------------------------------------------------
+# Helper: write a minimal YAML into analysis/ for a given stem + MP3 in inbox/
+# ---------------------------------------------------------------------------
+
+def _write_fake_yaml(analysis_dir: Path, stem: str, emb: np.ndarray, novelty: float) -> Path:
+    data = {
+        "stem": stem,
+        "transcript": f"Transcript for {stem}",
+        "summary": "Zusammenfassung.",
+        "keywords": ["test"],
+        "similarity_score": round(1.0 - novelty, 6),
+        "novelty_score": novelty,
+        "nearest_aired_stem": None,
+        "language": "auto",
+        "podq_version": "0.0.0",
+        "analyzed_at": "2024-01-01T00:00:00+00:00",
+        "embedding": emb.tolist(),
+    }
+    yaml_path = analysis_dir / f"{stem}.yaml"
+    yaml_path.write_text(
+        yaml.dump(data, allow_unicode=True, default_flow_style=False, sort_keys=False),
+        encoding="utf-8",
+    )
+    return yaml_path
+
+
+# ---------------------------------------------------------------------------
+# compute_intra_batch_scores() tests
+# ---------------------------------------------------------------------------
+
+def test_intra_batch_uniqueness_values(tmp_path):
+    """Unique item gets high uniqueness; near-duplicates get low uniqueness."""
+    (tmp_path / "inbox").mkdir()
+    (tmp_path / "analysis").mkdir()
+    (tmp_path / "aired").mkdir()
+
+    from podq.paths import ProjectPaths
+
+    # Two near-duplicates: almost identical embeddings.
+    dup_a = _unit(np.array([1.0, 0.01, 0.0]))
+    dup_b = _unit(np.array([1.0, 0.02, 0.0]))
+    # One unique: orthogonal to the duplicates.
+    unique = _unit(np.array([0.0, 0.0, 1.0]))
+
+    # Create inbox MP3 stubs + analysis YAMLs.
+    for stem, emb in [("dup_a", dup_a), ("dup_b", dup_b), ("unique_q", unique)]:
+        (tmp_path / "inbox" / f"{stem}.mp3").touch()
+        _write_fake_yaml(tmp_path / "analysis", stem, emb, novelty=1.0)
+
+    paths = ProjectPaths(root=tmp_path)
+    compute_intra_batch_scores(paths, aired_stems=set())
+
+    def _load(stem):
+        return yaml.safe_load(
+            (tmp_path / "analysis" / f"{stem}.yaml").read_text(encoding="utf-8")
+        )
+
+    data_dup_a = _load("dup_a")
+    data_dup_b = _load("dup_b")
+    data_unique = _load("unique_q")
+
+    # Unique item should have high intra-batch uniqueness.
+    assert data_unique["intra_batch_uniqueness"] > 0.8, (
+        f"Expected unique item > 0.8, got {data_unique['intra_batch_uniqueness']}"
+    )
+
+    # Near-duplicates should penalise each other.
+    assert data_dup_a["intra_batch_uniqueness"] < 0.3, (
+        f"Expected dup_a < 0.3, got {data_dup_a['intra_batch_uniqueness']}"
+    )
+    assert data_dup_b["intra_batch_uniqueness"] < 0.3, (
+        f"Expected dup_b < 0.3, got {data_dup_b['intra_batch_uniqueness']}"
+    )
+
+    # standout_score = min(novelty_score, intra_batch_uniqueness) for each item.
+    for stem, data in [("dup_a", data_dup_a), ("dup_b", data_dup_b), ("unique_q", data_unique)]:
+        expected = round(min(data["novelty_score"], data["intra_batch_uniqueness"]), 6)
+        assert abs(data["standout_score"] - expected) < 1e-9, (
+            f"{stem}: standout_score {data['standout_score']} != min({data['novelty_score']}, "
+            f"{data['intra_batch_uniqueness']}) = {expected}"
+        )
+
+
+def test_intra_batch_single_item(tmp_path):
+    """A batch with a single unaired item gets intra_batch_uniqueness = 1.0."""
+    (tmp_path / "inbox").mkdir()
+    (tmp_path / "analysis").mkdir()
+    (tmp_path / "aired").mkdir()
+
+    from podq.paths import ProjectPaths
+
+    emb = _unit(np.array([1.0, 0.0, 0.0]))
+    (tmp_path / "inbox" / "solo.mp3").touch()
+    _write_fake_yaml(tmp_path / "analysis", "solo", emb, novelty=0.7)
+
+    paths = ProjectPaths(root=tmp_path)
+    compute_intra_batch_scores(paths, aired_stems=set())
+
+    data = yaml.safe_load(
+        (tmp_path / "analysis" / "solo.yaml").read_text(encoding="utf-8")
+    )
+    assert data["intra_batch_uniqueness"] == pytest.approx(1.0)
+    assert data["standout_score"] == pytest.approx(min(0.7, 1.0), abs=1e-6)
+
+
+def test_intra_batch_scores_idempotent(tmp_path):
+    """Running compute_intra_batch_scores twice produces identical YAML."""
+    (tmp_path / "inbox").mkdir()
+    (tmp_path / "analysis").mkdir()
+    (tmp_path / "aired").mkdir()
+
+    from podq.paths import ProjectPaths
+
+    dup_a = _unit(np.array([1.0, 0.01, 0.0]))
+    dup_b = _unit(np.array([1.0, 0.02, 0.0]))
+    unique = _unit(np.array([0.0, 0.0, 1.0]))
+
+    for stem, emb in [("dup_a", dup_a), ("dup_b", dup_b), ("unique_q", unique)]:
+        (tmp_path / "inbox" / f"{stem}.mp3").touch()
+        _write_fake_yaml(tmp_path / "analysis", stem, emb, novelty=1.0)
+
+    paths = ProjectPaths(root=tmp_path)
+
+    compute_intra_batch_scores(paths, aired_stems=set())
+    # Snapshot YAML contents after first run.
+    first_pass = {
+        stem: (tmp_path / "analysis" / f"{stem}.yaml").read_text(encoding="utf-8")
+        for stem in ("dup_a", "dup_b", "unique_q")
+    }
+
+    compute_intra_batch_scores(paths, aired_stems=set())
+    # Second run must not change any file.
+    for stem in ("dup_a", "dup_b", "unique_q"):
+        second = (tmp_path / "analysis" / f"{stem}.yaml").read_text(encoding="utf-8")
+        assert second == first_pass[stem], f"YAML changed on second run for {stem}"
