@@ -253,6 +253,17 @@ tr.repeat:hover td {
   color: #92400e;
 }
 
+.chip-error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.banner-error {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #9a3412;
+}
+
 /* ── Novelty bar ── */
 .bar {
   height: 6px;

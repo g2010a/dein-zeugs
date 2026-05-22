@@ -52,6 +52,7 @@ def render_report(paths: ProjectPaths, config) -> Path:
             "novelty_score": data.get("novelty_score", 1.0),
             "standout_score": data.get("standout_score", data.get("novelty_score", 1.0)),
             "nearest_aired_stem": data.get("nearest_aired_stem"),
+            "llm_error": data.get("llm_error"),
         })
     processed_items.sort(key=lambda x: x["novelty_score"], reverse=True)
 
@@ -113,6 +114,8 @@ def render_report(paths: ProjectPaths, config) -> Path:
     css = css_path.read_text() if css_path.exists() else ""
     js = js_path.read_text() if js_path.exists() else ""
 
+    llm_error_count = sum(1 for item in processed_items if item.get("llm_error"))
+
     html = template.render(
         aired=aired_items,
         processed=processed_items,
@@ -128,6 +131,7 @@ def render_report(paths: ProjectPaths, config) -> Path:
         inbox_path=inbox_path,
         aired_path=aired_path,
         threshold=config.similarity_threshold,
+        llm_error_count=llm_error_count,
         css=css,
         js=js,
     )

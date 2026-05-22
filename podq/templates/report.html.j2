@@ -25,6 +25,11 @@
     <div class="banner">
       {{ aired_count }} von {{ total_questions_count }} Fragen wurden bereits ausgestrahlt.
     </div>
+    {% if llm_error_count %}
+    <div class="banner banner-error">
+      &#x26A0;&#xFE0F; KI-Analyse fehlgeschlagen f&#252;r {{ llm_error_count }} Frage{% if llm_error_count != 1 %}n{% endif %} &mdash; Zusammenfassung und Schlagw&#246;rter nicht verf&#252;gbar. Die Transkripte sind vollst&#228;ndig.
+    </div>
+    {% endif %}
 
     {# ── Transcript global toolbar ── #}
     <div class="transcript-toolbar">
@@ -41,6 +46,7 @@
         {% for item in standouts %}
         <div class="card">
           <div class="card-stem">{{ item.stem }}</div>
+          {% if item.llm_error %}<span class="chip chip-error">&#x26A0; KI-Fehler</span>{% endif %}
           <div class="card-summary">{{ item.summary }}</div>
           {% if item.keywords %}
           <div class="card-keywords">
@@ -125,7 +131,7 @@
         <tbody>
           {% for item in processed %}
           <tr{% if item.similarity_score >= threshold %} class="repeat"{% endif %}>
-            <td class="stem">{{ item.stem }}</td>
+            <td class="stem">{{ item.stem }}{% if item.llm_error %} <span class="chip chip-error">&#x26A0;</span>{% endif %}</td>
             <td>{{ item.summary }}</td>
             <td>{{ transcript_block(item.transcript) }}</td>
             <td>{{ item.keywords | join(", ") }}</td>

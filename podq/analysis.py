@@ -26,28 +26,41 @@ KEYWORDS_PROMPT = (
 )
 
 _llm_instance = None
+_llm_error: Exception | None = None
 
 
 def _get_llm(model_path: str):
-    global _llm_instance
+    global _llm_instance, _llm_error
+    if _llm_error is not None:
+        raise _llm_error
     if _llm_instance is None:
         from llama_cpp import Llama
-        _llm_instance = Llama(
-            model_path=model_path,
-            n_ctx=2048,
-            n_threads=4,
-            verbose=False,
-        )
+        try:
+            _llm_instance = Llama(
+                model_path=model_path,
+                n_ctx=2048,
+                n_threads=4,
+                verbose=False,
+            )
+        except Exception as e:
+            _llm_error = e
+            raise
     return _llm_instance
 
 
+def get_llm_error() -> str | None:
+    return str(_llm_error) if _llm_error is not None else None
+
+
 def _infer(prompt: str, model_path: str, max_tokens: int = 256) -> str:
+    was_known_error = _llm_error is not None
     try:
         llm = _get_llm(model_path)
         output = llm(prompt, max_tokens=max_tokens, stop=["\n\n", "###"])
         return output["choices"][0]["text"].strip()
     except Exception as e:
-        log.error(f"LLM inference failed: {e}")
+        if not was_known_error:
+            log.error(f"LLM inference failed: {e}")
         return ""
 
 
@@ -175,7 +188,7 @@ def process_all_unprocessed(
         summary_text = summarize(text, config.llm_model_path)
         kws = keywords(text, config.llm_model_path)
 
-        data = {
+        data: dict = {
             "stem": stem,
             "transcript": text,
             "summary": summary_text,
@@ -188,6 +201,9 @@ def process_all_unprocessed(
             "analyzed_at": datetime.now(timezone.utc).isoformat(),
             "embedding": emb.tolist(),
         }
+        llm_err = get_llm_error()
+        if llm_err:
+            data["llm_error"] = llm_err
         yaml_bytes = yaml.dump(
             data, allow_unicode=True, default_flow_style=False, sort_keys=False
         ).encode("utf-8")
