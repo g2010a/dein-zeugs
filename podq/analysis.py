@@ -12,20 +12,31 @@ log = logging.getLogger("podq")
 
 SUMMARY_PROMPT = (
     "Fasse den folgenden Text in einem einzigen kurzen Satz zusammen. "
-    "Schreibe NUR diesen einen Satz – keine Erklärungen, keine Hinweise, keine Anmerkungen.\n\n"
-    "Text: Ich würde gerne Gandhi treffen, das ist bestimmt spannend.\n"
-    "Zusammenfassung: Die Person möchte gerne Gandhi treffen.\n\n"
+    "Schreibe NUR diesen einen Satz – keine Erklärungen, keine Hinweise, keine Anmerkungen. "
+    "Enthält der Text Wiederholungen, fasse nur die Kernaussage zusammen.\n\n"
+    "Text: Ich würde gerne Gandhi treffen, das ist bestimmt spannend. Hat bestimmt eine gute Energie, der Typ.\n"
+    "Zusammenfassung: Die Person möchte Gandhi treffen und erwartet von ihm eine gute Energie.\n\n"
     "Text: Mein Lieblingssport ist Laufen, weil man es spontan alleine oder mit anderen machen kann.\n"
     "Zusammenfassung: Laufen ist der Lieblingssport, weil es flexibel und spontan ist.\n\n"
+    "Text: Anpassungsfähigkeit, unter anderem Anpassungsfähigkeit, sich begeistern können. Anpassungsfähigkeit, unter anderem Anpassungsfähigkeit, sich begeistern können.\n"
+    "Zusammenfassung: Die Person nennt Anpassungsfähigkeit und Begeisterungsfähigkeit als wichtige Eigenschaften.\n\n"
+    "Text: Nein.\n"
+    "Zusammenfassung: Die Person verneint.\n\n"
     "Text: {transcript}\n"
     "Zusammenfassung:"
 )
 
 KEYWORDS_PROMPT = (
     "Gib 3 bis 5 Schlüsselwörter aus dem folgenden Text zurück. "
-    "Nur einzelne Wörter, kommagetrennt, keine Sätze, keine Erklärungen.\n\n"
+    "Nur einzelne Wörter, kommagetrennt, keine Sätze, keine Erklärungen. "
+    "Verwende die Grundform (Infinitiv für Verben, Singular für Nomen). "
+    "Bei sehr kurzen Texten genügen 1 bis 2 Wörter.\n\n"
     "Text: Ich schwimme gerne, weil ich meinen Kopf abschalten kann und es die Gelenke schont.\n"
-    "Schlüsselwörter: schwimmen, gelenke, entspannung\n\n"
+    "Schlüsselwörter: schwimmen, gelenk, entspannung\n\n"
+    "Text: Mein Lieblingssport ist Laufen, weil man es spontan alleine oder mit anderen machen kann.\n"
+    "Schlüsselwörter: laufen, sport, spontanität\n\n"
+    "Text: Nein.\n"
+    "Schlüsselwörter: verneinung\n\n"
     "Text: {transcript}\n"
     "Schlüsselwörter:"
 )
@@ -43,7 +54,7 @@ def _get_llm(model_path: str):
         try:
             _llm_instance = Llama(
                 model_path=model_path,
-                n_ctx=2048,
+                n_ctx=8192,
                 n_threads=4,
                 verbose=False,
             )
@@ -57,11 +68,12 @@ def get_llm_error() -> str | None:
     return str(_llm_error) if _llm_error is not None else None
 
 
-def _infer(prompt: str, model_path: str, max_tokens: int = 256) -> str:
+def _infer(prompt: str, model_path: str, max_tokens: int = 256, extra_stop: list[str] | None = None) -> str:
     was_known_error = _llm_error is not None
     try:
         llm = _get_llm(model_path)
-        output = llm(prompt, max_tokens=max_tokens, stop=["\n\n", "###"])
+        stop = ["\n\n", "###"] + (extra_stop or [])
+        output = llm(prompt, max_tokens=max_tokens, stop=stop)
         return output["choices"][0]["text"].strip()
     except Exception as e:
         if not was_known_error:
@@ -74,7 +86,7 @@ def summarize(text: str, model_path: str) -> str:
 
 
 def keywords(text: str, model_path: str) -> list[str]:
-    raw = _infer(KEYWORDS_PROMPT.format(transcript=text), model_path, max_tokens=64)
+    raw = _infer(KEYWORDS_PROMPT.format(transcript=text), model_path, max_tokens=64, extra_stop=["\n"])
     if not raw:
         return []
     parts = [p.strip().lower() for p in raw.replace("\n", ",").split(",") if p.strip()]

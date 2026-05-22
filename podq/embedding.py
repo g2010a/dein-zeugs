@@ -15,8 +15,11 @@ class EmbeddingModel:
 
     def _load(self):
         if self._model is None:
+            import warnings
             from fastembed import TextEmbedding
-            self._model = TextEmbedding(self.name)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=".*mean pooling.*", category=UserWarning)
+                self._model = TextEmbedding(self.name)
 
     def embed(self, text: str) -> np.ndarray:
         self._load()
