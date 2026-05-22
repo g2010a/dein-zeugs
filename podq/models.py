@@ -93,6 +93,12 @@ def _dir_size(path: Path) -> int:
     return sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
 
 
+def _fmt_size(nbytes: int) -> str:
+    if nbytes >= 1 << 20:
+        return f"{nbytes / (1 << 20):.1f} MB"
+    return f"{nbytes >> 10} KB"
+
+
 def clean_downloads(config, yes: bool = False) -> None:
     """Delete all downloaded model files, optionally prompting for confirmation."""
     import shutil
@@ -124,8 +130,7 @@ def clean_downloads(config, yes: bool = False) -> None:
 
     print("Die folgenden Dateien werden gelöscht:")
     for path, label in present:
-        mb = _dir_size(path) >> 20
-        print(f"  {label}: {path}  ({mb} MB)")
+        print(f"  {label}: {path}  ({_fmt_size(_dir_size(path))})")
 
     if not yes:
         answer = input("Löschen? [j/N] ").strip().lower()
@@ -143,12 +148,12 @@ def clean_downloads(config, yes: bool = False) -> None:
             else:
                 path.unlink(missing_ok=True)
             total_freed += size
-            print(f"  {label} gelöscht ({size >> 20} MB freigegeben)")
+            print(f"  {label} gelöscht ({_fmt_size(size)} freigegeben)")
         except Exception as e:
             print(f"  Fehler beim Löschen von {path}: {e}")
             failed = True
 
-    print(f"\nInsgesamt freigegeben: {total_freed >> 20} MB")
+    print(f"\nInsgesamt freigegeben: {_fmt_size(total_freed)}")
     if failed:
         raise SystemExit(1)
 
@@ -169,8 +174,7 @@ def clean_outputs(paths, yes: bool = False) -> None:
 
     print("Die folgenden Ausgabeverzeichnisse werden geleert:")
     for path, label in present:
-        mb = _dir_size(path) >> 20
-        print(f"  {label}: {path}  ({mb} MB)")
+        print(f"  {label}: {path}  ({_fmt_size(_dir_size(path))})")
 
     if not yes:
         answer = input("Leeren? [j/N] ").strip().lower()
@@ -186,12 +190,12 @@ def clean_outputs(paths, yes: bool = False) -> None:
             shutil.rmtree(path)
             path.mkdir(parents=True, exist_ok=True)
             total_freed += size
-            print(f"  {label} geleert ({size >> 20} MB freigegeben)")
+            print(f"  {label} geleert ({_fmt_size(size)} freigegeben)")
         except Exception as e:
             print(f"  Fehler beim Leeren von {path}: {e}")
             failed = True
 
-    print(f"\nInsgesamt freigegeben: {total_freed >> 20} MB")
+    print(f"\nInsgesamt freigegeben: {_fmt_size(total_freed)}")
     if failed:
         raise SystemExit(1)
 
