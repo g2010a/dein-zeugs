@@ -8,46 +8,104 @@
 </head>
 <body>
   <nav class="sticky-nav">
-    <a href="#aired">Aired ({{ aired|length }})</a>
-    <a href="#processed">Processed ({{ processed|length }})</a>
-    <a href="#unprocessed">Unprocessed ({{ unprocessed|length }})</a>
-    <a href="#clusters">Clusters ({{ clusters|length }})</a>
+    <a href="#standouts">Highlights ({{ standouts|length }})</a>
+    <a href="#repeats">Wiederholungen ({{ possible_repeats|length }})</a>
+    <a href="#processed">Alle Fragen ({{ processed|length }})</a>
+    <a href="#clusters">Cluster ({{ clusters|length }})</a>
+    <a href="#aired">Ausgestrahlt ({{ aired|length }})</a>
+    <a href="#unprocessed">Unverarbeitet ({{ unprocessed|length }})</a>
   </nav>
 
   <main>
-    <details open id="aired">
-      <summary><h2>Aired Questions</h2></summary>
-      {% if aired %}
-      <table>
-        <thead>
-          <tr><th>Stem</th><th>Summary</th></tr>
-        </thead>
-        <tbody>
-          {% for item in aired %}
-          <tr>
-            <td class="stem">{{ item.stem }}</td>
-            <td>{{ item.summary }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    {# ── Banner ── #}
+    <div class="banner">
+      {{ aired_count }} von {{ total_questions_count }} Fragen wurden bereits ausgestrahlt.
+    </div>
+
+    {# ── 1. Standouts ── #}
+    <details open id="standouts">
+      <summary><h2>Highlights</h2></summary>
+      {% if standouts %}
+      <div class="card-list">
+        {% for item in standouts %}
+        <div class="card">
+          <div class="card-stem">{{ item.stem }}</div>
+          <div class="card-summary">{{ item.summary }}</div>
+          {% if item.keywords %}
+          <div class="card-keywords">
+            {% for kw in item.keywords %}
+            <span class="chip">{{ kw }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+          <div class="bar">
+            <div class="bar-fill {% if item.standout_score >= 0.7 %}bar-green{% elif item.standout_score >= 0.4 %}bar-amber{% else %}bar-red{% endif %}"
+                 style="width: {{ (item.standout_score * 100)|round|int }}%"></div>
+          </div>
+          <div class="card-meta">Score: {{ "%.2f"|format(item.standout_score) }}</div>
+          {% if item.nearest_aired_stem %}
+          <div class="card-meta">
+            Ähnelt ausgestrahlter Frage: <span class="chip">{{ item.nearest_aired_stem }}</span>
+          </div>
+          {% endif %}
+          <div class="aired-hint">
+            Wurde diese Frage ausgestrahlt? In den <code>aired/</code>-Ordner verschieben.
+            <a href="file://{{ inbox_path }}/">Inbox öffnen</a>
+            <a href="file://{{ aired_path }}/">Aired öffnen</a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
       {% else %}
-      <p class="empty">No aired questions found.</p>
+      <p class="empty">Keine verarbeiteten Fragen vorhanden.</p>
       {% endif %}
     </details>
 
-    <details open id="processed">
-      <summary><h2>Processed Questions</h2></summary>
+    {# ── 2. Mögliche Wiederholungen ── #}
+    <details id="repeats">
+      <summary><h2>Mögliche Wiederholungen</h2></summary>
+      {% if possible_repeats %}
+      <div class="card-list">
+        {% for item in possible_repeats %}
+        <div class="card card-repeat">
+          <div class="card-stem">{{ item.stem }}</div>
+          {% if item.nearest_aired_stem %}
+          <span class="chip chip-repeat">&#x1F501; ähnelt {{ item.nearest_aired_stem }}</span>
+          {% endif %}
+          <div class="card-summary">{{ item.summary }}</div>
+          {% if item.keywords %}
+          <div class="card-keywords">
+            {% for kw in item.keywords %}
+            <span class="chip">{{ kw }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+          <div class="bar">
+            <div class="bar-fill bar-red"
+                 style="width: {{ (item.novelty_score * 100)|round|int }}%"></div>
+          </div>
+          <div class="card-meta">Ähnlichkeit: {{ "%.2f"|format(item.similarity_score) }} · Neuheit: {{ "%.2f"|format(item.novelty_score) }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty">Keine möglichen Wiederholungen gefunden (Schwellenwert: {{ "%.2f"|format(threshold) }}).</p>
+      {% endif %}
+    </details>
+
+    {# ── 3. Alle verarbeiteten Fragen (Tabelle) ── #}
+    <details id="processed">
+      <summary><h2>Alle verarbeiteten Fragen</h2></summary>
       {% if processed %}
       <table>
         <thead>
           <tr>
             <th>Stem</th>
-            <th>Summary</th>
-            <th>Keywords</th>
-            <th>Similarity</th>
-            <th>Novelty</th>
-            <th>Nearest Aired</th>
+            <th>Zusammenfassung</th>
+            <th>Schlagwörter</th>
+            <th>Ähnlichkeit</th>
+            <th>Neuheit</th>
+            <th>Nächste ausgestrahlte Frage</th>
           </tr>
         </thead>
         <tbody>
@@ -63,14 +121,100 @@
           {% endfor %}
         </tbody>
       </table>
-      <p class="note">Rows highlighted in amber have similarity &ge; {{ "%.2f"|format(threshold) }} and may be repeats.</p>
+      <p class="note">Amber markierte Zeilen haben eine Ähnlichkeit &ge; {{ "%.2f"|format(threshold) }} und könnten Wiederholungen sein.</p>
       {% else %}
-      <p class="empty">No processed questions found.</p>
+      <p class="empty">Keine verarbeiteten Fragen gefunden.</p>
       {% endif %}
     </details>
 
-    <details open id="unprocessed">
-      <summary><h2>Unprocessed Files</h2></summary>
+    {# ── 4. Cluster ── #}
+    <details id="clusters">
+      <summary><h2>Ähnlichkeits-Cluster</h2></summary>
+      {% if clusters %}
+      <p class="note">Schwellenwert: {{ "%.2f"|format(threshold) }}. Gruppen inhaltlich ähnlicher Fragen.</p>
+
+      {% if new_only_clusters %}
+      <div class="cluster-group cluster-group-new">
+        <h3>Neue Cluster <span class="chip">nur neue Fragen</span></h3>
+        <p class="note">Diese Fragen sind sich untereinander ähnlich — mögliche Dopplungen innerhalb des aktuellen Stapels.</p>
+        <ul class="clusters">
+          {% for cluster in new_only_clusters %}
+          <li class="cluster">
+            <strong>Cluster ({{ cluster|length }} Fragen):</strong>
+            <ul>
+              {% for stem in cluster %}
+              <li>{{ stem }}</li>
+              {% endfor %}
+            </ul>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% if mixed_clusters %}
+      <div class="cluster-group cluster-group-mixed">
+        <h3>Gemischte Cluster <span class="chip">neue + ausgestrahlte Fragen</span></h3>
+        <p class="note">Diese Cluster enthalten sowohl neue als auch bereits ausgestrahlte Fragen.</p>
+        <ul class="clusters">
+          {% for cluster in mixed_clusters %}
+          <li class="cluster">
+            <strong>Cluster ({{ cluster|length }} Fragen):</strong>
+            <ul>
+              {% for stem in cluster %}
+              <li>{{ stem }}</li>
+              {% endfor %}
+            </ul>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% set singletons = namespace(items=[]) %}
+      {% for cluster in clusters %}{% if cluster|length == 1 %}{% set singletons.items = singletons.items + [cluster] %}{% endif %}{% endfor %}
+      {% if singletons.items %}
+      <ul class="clusters">
+        <li class="singletons">
+          <strong>Einzelne Fragen ({{ singletons.items|length }}):</strong>
+          <ul>
+            {% for cluster in singletons.items %}
+            <li>{{ cluster[0] }}</li>
+            {% endfor %}
+          </ul>
+        </li>
+      </ul>
+      {% endif %}
+      {% else %}
+      <p class="empty">Keine Cluster — nicht genug verarbeitete Fragen mit Einbettungen.</p>
+      {% endif %}
+    </details>
+
+    {# ── 5. Ausgestrahlte Fragen ── #}
+    <details id="aired">
+      <summary><h2>Ausgestrahlte Fragen</h2></summary>
+      {% if aired %}
+      <table>
+        <thead>
+          <tr><th>Stem</th><th>Zusammenfassung</th></tr>
+        </thead>
+        <tbody>
+          {% for item in aired %}
+          <tr>
+            <td class="stem">{{ item.stem }}</td>
+            <td>{{ item.summary }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="empty">Keine ausgestrahlten Fragen gefunden.</p>
+      {% endif %}
+    </details>
+
+    {# ── 6. Unverarbeitete Dateien ── #}
+    <details id="unprocessed">
+      <summary><h2>Unverarbeitete Dateien</h2></summary>
       {% if unprocessed %}
       <table>
         <thead>
@@ -86,43 +230,7 @@
         </tbody>
       </table>
       {% else %}
-      <p class="empty">No unprocessed files.</p>
-      {% endif %}
-    </details>
-
-    <details open id="clusters">
-      <summary><h2>Similarity Clusters</h2></summary>
-      {% if clusters %}
-      <p class="note">Threshold: {{ "%.2f"|format(threshold) }}. Groups of questions asking substantially the same thing.</p>
-      <ul class="clusters">
-        {% for cluster in clusters %}
-        {% if cluster|length > 1 %}
-        <li class="cluster">
-          <strong>Cluster ({{ cluster|length }} items):</strong>
-          <ul>
-            {% for stem in cluster %}
-            <li>{{ stem }}</li>
-            {% endfor %}
-          </ul>
-        </li>
-        {% endif %}
-        {% endfor %}
-        {% set singletons = clusters | selectattr('length', 'equalto', 1) | list %}
-        {% if singletons %}
-        <li class="singletons">
-          <strong>Unique questions ({{ singletons|length }}):</strong>
-          <ul>
-            {% for cluster in clusters %}
-            {% if cluster|length == 1 %}
-            <li>{{ cluster[0] }}</li>
-            {% endif %}
-            {% endfor %}
-          </ul>
-        </li>
-        {% endif %}
-      </ul>
-      {% else %}
-      <p class="empty">No clusters — not enough processed questions with embeddings.</p>
+      <p class="empty">Keine unverarbeiteten Dateien.</p>
       {% endif %}
     </details>
   </main>
