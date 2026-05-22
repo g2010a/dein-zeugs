@@ -2,6 +2,7 @@ import logging
 import yaml
 import numpy as np
 from datetime import datetime, timezone
+from pathlib import Path
 from podq.util.atomic import atomic_write
 from podq.paths import ProjectPaths, unprocessed_audio, normalize_stem
 from podq.embedding import EmbeddingModel
@@ -62,6 +63,11 @@ def keywords(text: str, model_path: str) -> list[str]:
     return list(dict.fromkeys(parts))[:5]
 
 
+def _cosine(a: np.ndarray, b: np.ndarray) -> float:
+    """Cosine similarity between two vectors (assumed unit-normalised)."""
+    return float(np.dot(a, b))
+
+
 def score(
     new_embedding: np.ndarray,
     aired_embeddings: list[tuple[str, np.ndarray]],
@@ -75,6 +81,77 @@ def score(
     return best_sim, round(1.0 - best_sim, 6), best_stem
 
 
+def compute_intra_batch_scores(paths: ProjectPaths, aired_stems: set[str]) -> None:
+    """Second pass: write intra_batch_uniqueness and standout_score to each unaired YAML.
+
+    Safe to re-run: skips a file if both fields already match the computed values.
+    """
+    if not paths.analysis.exists():
+        return
+
+    # Collect (stem, embedding, yaml_path) for all unaired items that have a YAML.
+    inbox_stems: set[str] = set()
+    if paths.inbox.exists():
+        for mp3 in paths.inbox.glob("*.mp3"):
+            inbox_stems.add(normalize_stem(mp3.stem))
+
+    batch_items: list[tuple[str, np.ndarray, Path]] = []
+    for stem in inbox_stems:
+        yaml_path = paths.analysis / f"{stem}.yaml"
+        if not yaml_path.exists():
+            continue
+        try:
+            data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if "embedding" not in data:
+            continue
+        emb = np.array(data["embedding"], dtype=np.float32)
+        batch_items.append((stem, emb, yaml_path))
+
+    n = len(batch_items)
+
+    for i, (stem, emb_i, yaml_path) in enumerate(batch_items):
+        if n == 1:
+            intra = 1.0
+        else:
+            max_sim = max(
+                _cosine(emb_i, emb_j)
+                for j, (_, emb_j, _) in enumerate(batch_items)
+                if j != i
+            )
+            max_sim = max(0.0, min(1.0, max_sim))
+            intra = round(1.0 - max_sim, 6)
+
+        try:
+            data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+
+        novelty = data.get("novelty_score", 0.0)
+        standout = round(min(float(novelty), intra), 6)
+
+        # Idempotency: skip write if values are already correct.
+        existing_intra = data.get("intra_batch_uniqueness")
+        existing_standout = data.get("standout_score")
+        if (
+            existing_intra is not None
+            and existing_standout is not None
+            and abs(existing_intra - intra) < 1e-9
+            and abs(existing_standout - standout) < 1e-9
+        ):
+            continue
+
+        data["intra_batch_uniqueness"] = intra
+        data["standout_score"] = standout
+
+        yaml_bytes = yaml.dump(
+            data, allow_unicode=True, default_flow_style=False, sort_keys=False
+        ).encode("utf-8")
+        atomic_write(yaml_path, yaml_bytes)
+        log.info(f"Batch-Einzigartigkeit berechnet: {stem} → {intra:.4f}")
+
+
 def process_all_unprocessed(
     paths: ProjectPaths,
     config,
@@ -85,11 +162,12 @@ def process_all_unprocessed(
 
     aired = embedding_model.aired_corpus(paths)
     aired_embeddings = [(stem, emb) for stem, _text, emb in aired]
+    aired_stems = {stem for stem, _text, _emb in aired}
 
     count = 0
     for mp3 in unprocessed_audio(paths):
         stem = normalize_stem(mp3.stem)
-        log.info(f"Transcribing and analyzing {mp3.name}")
+        log.info(f"Transkription und Analyse: {mp3.name}")
         text = transcriber.transcribe(mp3)
 
         emb = embedding_model.embed(text)
@@ -115,4 +193,6 @@ def process_all_unprocessed(
         ).encode("utf-8")
         atomic_write(paths.analysis / f"{stem}.yaml", yaml_bytes)
         count += 1
+
+    compute_intra_batch_scores(paths, aired_stems)
     return count
