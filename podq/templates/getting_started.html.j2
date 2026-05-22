@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Willkommen bei podq</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      color: #1a1a1a;
+      background: #f9fafb;
+      margin: 0;
+      padding: 2.5rem 1.5rem;
+    }
+    .card {
+      max-width: 640px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 2rem 2.5rem;
+      box-shadow: 0 4px 16px rgba(30, 58, 95, 0.08);
+      border: 1px solid #e5e7eb;
+    }
+    h1 {
+      font-size: 1.75rem;
+      color: #1e3a5f;
+      margin: 0 0 0.5rem 0;
+    }
+    p { margin: 0.75rem 0; }
+    .path {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      background: #f1f5f9;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.95em;
+    }
+    .open-link {
+      display: inline-block;
+      margin: 1.25rem 0 0.5rem 0;
+      padding: 0.6rem 1.1rem;
+      background: #1e3a5f;
+      color: #ffffff;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 500;
+    }
+    .open-link:hover { background: #2c5380; }
+    .hint {
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e5e7eb;
+      color: #475569;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Willkommen bei podq</h1>
+    <p>
+      Schön, dass du podq nutzt. Damit podq deine Fragen analysieren kann,
+      lege bitte deine MP3-Aufnahmen im inbox-Ordner ab:
+    </p>
+    <p>
+      <span class="path">{{ inbox_path }}/</span>
+    </p>
+    <p>
+      <a class="open-link" href="file://{{ inbox_path }}/">inbox-Ordner öffnen</a>
+    </p>
+    <p class="hint">
+      Sobald MP3-Dateien in <span class="path">inbox/</span> liegen,
+      starte podq einfach noch einmal — die Fragen werden dann
+      transkribiert, analysiert und in einem neuen Bericht zusammengefasst.
+    </p>
+  </div>
+</body>
+</html>
