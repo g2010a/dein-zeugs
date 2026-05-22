@@ -15,6 +15,25 @@ def make_fixture_root(tmp_path: Path) -> Path:
     return root
 
 
+def _yaml_item(stem, novelty=1.0, similarity=0.0, nearest=None, emb=None, standout_score=None):
+    d = {
+        "stem": stem,
+        "transcript": "Testfrage",
+        "summary": f"Zusammenfassung von {stem}",
+        "keywords": ["test"],
+        "similarity_score": similarity,
+        "novelty_score": novelty,
+        "nearest_aired_stem": nearest,
+        "embedding": emb or ([0.1] * 384),
+        "language": "de",
+        "podq_version": "1.0.0",
+        "analyzed_at": "2026-05-18T00:00:00+00:00",
+    }
+    if standout_score is not None:
+        d["standout_score"] = standout_score
+    return yaml.dump(d, allow_unicode=True, default_flow_style=False, sort_keys=False)
+
+
 def test_report_sections(tmp_path):
     from podq.config import Config
     from podq.paths import ProjectPaths
@@ -176,3 +195,198 @@ def test_processed_sorted_by_novelty_desc(tmp_path):
     pos_mid = html.index("mid_novelty")
     pos_low = html.index("low_novelty")
     assert pos_high < pos_mid < pos_low, "Processed items not sorted by novelty descending"
+
+
+# ── New tests for P2, P5, P7 ──
+
+def test_standouts_section_is_first(tmp_path):
+    """Standouts section appears before processed/aired/clusters in the HTML."""
+    from podq.config import Config
+    from podq.paths import ProjectPaths
+    from podq.report import render_report
+
+    root = make_fixture_root(tmp_path)
+    (root / "inbox" / "q1.mp3").touch()
+    (root / "analysis" / "q1.yaml").write_text(_yaml_item("q1", novelty=0.8))
+
+    config = Config()
+    paths = ProjectPaths(root)
+    report_path = render_report(paths, config)
+    html = report_path.read_text()
+
+    pos_standouts = html.index('id="standouts"')
+    pos_processed = html.index('id="processed"')
+    pos_aired = html.index('id="aired"')
+
+    assert pos_standouts < pos_processed, "Standouts must come before processed table"
+    assert pos_standouts < pos_aired, "Standouts must come before aired section"
+
+
+def test_standouts_sorted_by_standout_score(tmp_path):
+    """Standouts are ordered by standout_score desc when it is present."""
+    from podq.config import Config
+    from podq.paths import ProjectPaths
+    from podq.report import render_report
+
+    root = make_fixture_root(tmp_path)
+
+    items = [
+        ("low_stand",  0.3, 0.7, 0.2),   # stem, novelty, similarity, standout_score
+        ("high_stand", 0.6, 0.4, 0.9),
+        ("mid_stand",  0.5, 0.5, 0.55),
+    ]
+    for stem, novelty, sim, standout in items:
+        (root / "inbox" / f"{stem}.mp3").touch()
+        (root / "analysis" / f"{stem}.yaml").write_text(
+            _yaml_item(stem, novelty=novelty, similarity=sim, standout_score=standout)
+        )
+
+    config = Config()
+    paths = ProjectPaths(root)
+    report_path = render_report(paths, config)
+    html = report_path.read_text()
+
+    # Within the standouts section the high-score item should appear first
+    standouts_html = html[html.index('id="standouts"'):html.index('id="repeats"')]
+    pos_high = standouts_html.index("high_stand")
+    pos_mid  = standouts_html.index("mid_stand")
+    pos_low  = standouts_html.index("low_stand")
+    assert pos_high < pos_mid < pos_low, "Standouts not sorted by standout_score descending"
+
+
+def test_standouts_fallback_to_novelty_score(tmp_path):
+    """When standout_score is absent, novelty_score is used for ranking."""
+    from podq.config import Config
+    from podq.paths import ProjectPaths
+    from podq.report import render_report
+
+    root = make_fixture_root(tmp_path)
+
+    items = [
+        ("low_nov",  0.1),
+        ("high_nov", 0.95),
+        ("mid_nov",  0.5),
+    ]
+    for stem, novelty in items:
+        (root / "inbox" / f"{stem}.mp3").touch()
+        # No standout_score field — fallback to novelty_score
+        (root / "analysis" / f"{stem}.yaml").write_text(
+            _yaml_item(stem, novelty=novelty)
+        )
+
+    config = Config()
+    paths = ProjectPaths(root)
+    report_path = render_report(paths, config)
+    html = report_path.read_text()
+
+    standouts_html = html[html.index('id="standouts"'):html.index('id="repeats"')]
+    pos_high = standouts_html.index("high_nov")
+    pos_mid  = standouts_html.index("mid_nov")
+    pos_low  = standouts_html.index("low_nov")
+    assert pos_high < pos_mid < pos_low, "Standout fallback to novelty_score not working"
+
+
+def test_banner_shows_correct_counts(tmp_path):
+    """Banner displays correct aired and total counts."""
+    from podq.config import Config
+    from podq.paths import ProjectPaths
+    from podq.report import render_report
+
+    root = make_fixture_root(tmp_path)
+
+    # 2 aired
+    for stem in ["aired_a", "aired_b"]:
+        (root / "aired" / f"{stem}.mp3").touch()
+        (root / "analysis" / f"{stem}.yaml").write_text(
+            _yaml_item(stem, novelty=1.0)
+        )
+
+    # 3 processed (inbox only)
+    for stem in ["new_a", "new_b", "new_c"]:
+        (root / "inbox" / f"{stem}.mp3").touch()
+        (root / "analysis" / f"{stem}.yaml").write_text(
+            _yaml_item(stem, novelty=0.8)
+        )
+
+    config = Config()
+    paths = ProjectPaths(root)
+    report_path = render_report(paths, config)
+    html = report_path.read_text()
+
+    # Banner: "2 von 5 Fragen wurden bereits ausgestrahlt."
+    assert "2 von 5" in html, "Banner should show '2 von 5'"
+
+
+def test_aired_folder_links_present(tmp_path):
+    """Each standout card contains file:// links for inbox and aired folders."""
+    from podq.config import Config
+    from podq.paths import ProjectPaths
+    from podq.report import render_report
+
+    root = make_fixture_root(tmp_path)
+    (root / "inbox" / "q1.mp3").touch()
+    (root / "analysis" / "q1.yaml").write_text(_yaml_item("q1", novelty=0.8))
+
+    config = Config()
+    paths = ProjectPaths(root)
+    report_path = render_report(paths, config)
+    html = report_path.read_text()
+
+    assert f"file://{root}/inbox/" in html, "inbox file:// link missing"
+    assert f"file://{root}/aired/" in html, "aired file:// link missing"
+
+
+def test_new_only_clusters(tmp_path):
+    """Clusters with all-unaired members appear under 'Neue Cluster'."""
+    from podq.config import Config
+    from podq.paths import ProjectPaths
+    from podq.report import render_report
+
+    root = make_fixture_root(tmp_path)
+
+    # Two unaired items with identical embeddings — new-only cluster
+    emb = [1.0] + [0.0] * 383
+    for stem in ["new_q1", "new_q2"]:
+        (root / "inbox" / f"{stem}.mp3").touch()
+        (root / "analysis" / f"{stem}.yaml").write_text(
+            _yaml_item(stem, emb=emb)
+        )
+
+    config = Config()
+    paths = ProjectPaths(root)
+    report_path = render_report(paths, config)
+    html = report_path.read_text()
+
+    clusters_html = html[html.index('id="clusters"'):]
+    assert "Neue Cluster" in clusters_html
+    assert "new_q1" in clusters_html
+    assert "new_q2" in clusters_html
+
+
+def test_mixed_clusters(tmp_path):
+    """Clusters spanning aired + unaired appear under 'Gemischte Cluster'."""
+    from podq.config import Config
+    from podq.paths import ProjectPaths
+    from podq.report import render_report
+
+    root = make_fixture_root(tmp_path)
+
+    emb = [1.0] + [0.0] * 383
+
+    # One aired item
+    (root / "aired" / "aired_q.mp3").touch()
+    (root / "analysis" / "aired_q.yaml").write_text(_yaml_item("aired_q", emb=emb))
+
+    # One unaired item with identical embedding
+    (root / "inbox" / "new_q.mp3").touch()
+    (root / "analysis" / "new_q.yaml").write_text(_yaml_item("new_q", emb=emb))
+
+    config = Config()
+    paths = ProjectPaths(root)
+    report_path = render_report(paths, config)
+    html = report_path.read_text()
+
+    clusters_html = html[html.index('id="clusters"'):]
+    assert "Gemischte Cluster" in clusters_html
+    assert "aired_q" in clusters_html
+    assert "new_q" in clusters_html
