@@ -17,13 +17,25 @@ fi
 
 echo "==> Detected macOS $os_version on arm64. Proceeding with install..."
 
-# Install podq binary
+# Locate podq binary. Two supported layouts:
+#   1. Release archive (end users):  ./install.sh + ./podq + ./Run podq.command  (flat)
+#   2. Source tree (maintainers):    ./installer/install.sh + ./dist/podq        (build layout)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BINARY="$SCRIPT_DIR/../dist/podq"
+if [[ -f "$SCRIPT_DIR/podq" ]]; then
+    BINARY="$SCRIPT_DIR/podq"
+elif [[ -f "$SCRIPT_DIR/../dist/podq" ]]; then
+    BINARY="$SCRIPT_DIR/../dist/podq"
+else
+    echo "ERROR: podq binary not found next to install.sh (expected '$SCRIPT_DIR/podq')." >&2
+    echo "       Re-download the release archive — it is incomplete." >&2
+    exit 1
+fi
 
-if [[ ! -f "$BINARY" ]]; then
-    echo "ERROR: podq binary not found at $BINARY" >&2
-    echo "       Run 'make package' first to build the binary." >&2
+# Locate the Desktop launcher (always next to install.sh in both layouts).
+LAUNCHER="$SCRIPT_DIR/Run podq.command"
+if [[ ! -f "$LAUNCHER" ]]; then
+    echo "ERROR: Desktop launcher not found at '$LAUNCHER'." >&2
+    echo "       Re-download the release archive — it is incomplete." >&2
     exit 1
 fi
 
@@ -37,7 +49,7 @@ xattr -d com.apple.quarantine /usr/local/bin/podq 2>/dev/null || true
 
 # Install desktop launcher
 echo "==> Installing Desktop launcher..."
-cp "$SCRIPT_DIR/Run podq.command" "$HOME/Desktop/Run podq.command"
+cp "$LAUNCHER" "$HOME/Desktop/Run podq.command"
 chmod +x "$HOME/Desktop/Run podq.command"
 xattr -d com.apple.quarantine "$HOME/Desktop/Run podq.command" 2>/dev/null || true
 
@@ -46,28 +58,13 @@ echo "==> Pre-warming model caches..."
 /usr/local/bin/podq --warm-models
 
 echo ""
-echo "==> podq installed successfully!"
+echo "==> podq erfolgreich installiert!"
 echo ""
-echo "Du kannst jetzt 'Run podq.command' auf deinem Desktop doppelklicken, um podq zu starten."
+echo "So benutzt du podq:"
+echo "  1. Lege MP3-Aufnahmen unter ~/Podq/inbox/ ab."
+echo "  2. Doppelklicke 'Run podq.command' auf dem Schreibtisch."
+echo "  3. Der Bericht öffnet sich automatisch im Browser, sobald podq fertig ist."
 echo ""
-echo "=========================================="
-echo "  AUTOMATOR SETUP (do this once)"
-echo "=========================================="
-echo ""
-echo "1. Open Automator (Spotlight: 'Automator')"
-echo "2. File > New > Folder Action"
-echo "3. 'Folder Action receives files and folders added to:'"
-echo "   → Browse to your {root}/inbox directory"
-echo "4. Add action: 'Run Shell Script'"
-echo "   Shell: /bin/zsh"
-echo "   Pass input: as arguments"
-echo "5. Script body:"
-echo ""
-echo '   /usr/local/bin/podq "/absolute/path/to/{root}" >> "$HOME/Library/Logs/podq/automator.log" 2>&1'
-echo ""
-echo "   (Replace /absolute/path/to/{root} with your actual root directory path)"
-echo "6. Save as 'podq inbox watcher'"
-echo ""
-echo "Note: The \$@ arguments are ignored — podq always scans the full inbox directory."
-echo ""
-echo "See installer/com.podq.folderaction.workflow.md for detailed instructions."
+echo "Optional: Eine Automator-Ordneraktion kann podq automatisch starten, sobald eine"
+echo "Datei in den inbox-Ordner gelegt wird. Anleitung: com.podq.folderaction.workflow.md"
+echo "(in der Release-Archivdatei oder im Repository unter installer/)."
