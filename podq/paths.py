@@ -34,6 +34,8 @@ class ProjectPaths:
         return self.root / self.reports_dir
 
     def ensure_dirs(self) -> None:
+        self.inbox.mkdir(parents=True, exist_ok=True)
+        self.aired.mkdir(parents=True, exist_ok=True)
         self.analysis.mkdir(parents=True, exist_ok=True)
         self.reports.mkdir(parents=True, exist_ok=True)
 
