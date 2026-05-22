@@ -1,3 +1,7 @@
+{% macro transcript_block(t) %}{% if t %}<details class="transcript-details">
+  <summary>Transkript</summary>
+  <div class="transcript-body">{{ t[:300] }}{% if t|length > 300 %}<span class="transcript-ellipsis">&hellip;</span><span class="transcript-rest" hidden>{{ t[300:] }}</span><div><button class="transcript-expand-btn" type="button">Mehr anzeigen</button></div>{% endif %}</div>
+</details>{% endif %}{% endmacro %}
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -20,6 +24,13 @@
     {# ── Banner ── #}
     <div class="banner">
       {{ aired_count }} von {{ total_questions_count }} Fragen wurden bereits ausgestrahlt.
+    </div>
+
+    {# ── Transcript global toolbar ── #}
+    <div class="transcript-toolbar">
+      <span>Transkripte:</span>
+      <button id="expand-all-transcripts" type="button">Alle aufklappen</button>
+      <button id="collapse-all-transcripts" type="button">Alle zuklappen</button>
     </div>
 
     {# ── 1. Standouts ── #}
@@ -48,6 +59,7 @@
             Ähnelt ausgestrahlter Frage: <span class="chip">{{ item.nearest_aired_stem }}</span>
           </div>
           {% endif %}
+          {{ transcript_block(item.transcript) }}
           <div class="aired-hint">
             Wurde diese Frage ausgestrahlt? In den <code>aired/</code>-Ordner verschieben.
             <a href="file://{{ inbox_path }}/">Inbox öffnen</a>
@@ -85,6 +97,7 @@
                  style="width: {{ (item.novelty_score * 100)|round|int }}%"></div>
           </div>
           <div class="card-meta">Ähnlichkeit: {{ "%.2f"|format(item.similarity_score) }} · Neuheit: {{ "%.2f"|format(item.novelty_score) }}</div>
+          {{ transcript_block(item.transcript) }}
         </div>
         {% endfor %}
       </div>
@@ -102,6 +115,7 @@
           <tr>
             <th>Stem</th>
             <th>Zusammenfassung</th>
+            <th>Transkript</th>
             <th>Schlagwörter</th>
             <th>Ähnlichkeit</th>
             <th>Neuheit</th>
@@ -113,6 +127,7 @@
           <tr{% if item.similarity_score >= threshold %} class="repeat"{% endif %}>
             <td class="stem">{{ item.stem }}</td>
             <td>{{ item.summary }}</td>
+            <td>{{ transcript_block(item.transcript) }}</td>
             <td>{{ item.keywords | join(", ") }}</td>
             <td>{{ "%.2f"|format(item.similarity_score) }}</td>
             <td>{{ "%.2f"|format(item.novelty_score) }}</td>
@@ -196,13 +211,14 @@
       {% if aired %}
       <table>
         <thead>
-          <tr><th>Stem</th><th>Zusammenfassung</th></tr>
+          <tr><th>Stem</th><th>Zusammenfassung</th><th>Transkript</th></tr>
         </thead>
         <tbody>
           {% for item in aired %}
           <tr>
             <td class="stem">{{ item.stem }}</td>
             <td>{{ item.summary }}</td>
+            <td>{{ transcript_block(item.transcript) }}</td>
           </tr>
           {% endfor %}
         </tbody>

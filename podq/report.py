@@ -1,7 +1,5 @@
 import logging
-import os
 import yaml
-import subprocess
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
@@ -32,9 +30,11 @@ def render_report(paths: ProjectPaths, config) -> Path:
             if yaml_path.exists():
                 data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
                 summary = data.get("summary", "(keine Analyse)")
+                transcript = data.get("transcript", "")
             else:
                 summary = "(keine Analyse)"
-            aired_items.append({"stem": stem, "summary": summary})
+                transcript = ""
+            aired_items.append({"stem": stem, "summary": summary, "transcript": transcript})
 
     # 2. Processed questions (yaml)
     processed_items = []
@@ -46,6 +46,7 @@ def render_report(paths: ProjectPaths, config) -> Path:
         processed_items.append({
             "stem": stem,
             "summary": data.get("summary", ""),
+            "transcript": data.get("transcript", ""),
             "keywords": data.get("keywords", []),
             "similarity_score": data.get("similarity_score", 0.0),
             "novelty_score": data.get("novelty_score", 1.0),
@@ -132,8 +133,4 @@ def render_report(paths: ProjectPaths, config) -> Path:
     )
 
     atomic_write(report_path, html.encode("utf-8"))
-
-    if not os.environ.get("PODQ_NO_OPEN"):
-        subprocess.run(["open", str(report_path)], check=False)
-
     return report_path

@@ -322,6 +322,96 @@ tr.repeat:hover td {
   border: 1px solid #fed7aa;
 }
 
+/* ── Transcript ── */
+.transcript-details {
+  background: transparent;
+  border: 1px solid #e0f2fe;
+  border-radius: 4px;
+  margin-top: 0.4rem;
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
+.transcript-details > summary {
+  padding: 0.3rem 0.75rem;
+  background: #f0f9ff;
+  border-bottom: none;
+  font-size: 12px;
+  color: #0369a1;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.transcript-details > summary::before {
+  content: "▶";
+  font-size: 9px;
+  color: #0369a1;
+  transition: transform 0.15s;
+  display: inline-block;
+  width: 1em;
+}
+
+.transcript-details[open] > summary {
+  border-bottom: 1px solid #e0f2fe;
+}
+
+.transcript-details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.transcript-body {
+  padding: 0.6rem 0.75rem;
+  font-size: 12px;
+  color: #334155;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.transcript-expand-btn {
+  background: none;
+  border: none;
+  color: #0369a1;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0.2rem 0;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+.transcript-expand-btn:hover {
+  color: #0284c7;
+}
+
+/* ── Transcript global toolbar ── */
+.transcript-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.4rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fafafa;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.transcript-toolbar button {
+  background: none;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  color: #475569;
+  font-size: 11px;
+  padding: 0.15rem 0.55rem;
+  cursor: pointer;
+}
+
+.transcript-toolbar button:hover {
+  background: #f1f5f9;
+}
+
 @media (max-width: 768px) {
   main {
     padding: 0 0.75rem 2rem;
