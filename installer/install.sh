@@ -35,12 +35,20 @@ chmod +x /usr/local/bin/podq
 # Remove quarantine attribute so Gatekeeper allows it
 xattr -d com.apple.quarantine /usr/local/bin/podq 2>/dev/null || true
 
+# Install desktop launcher
+echo "==> Installing Desktop launcher..."
+cp "$SCRIPT_DIR/Run podq.command" "$HOME/Desktop/Run podq.command"
+chmod +x "$HOME/Desktop/Run podq.command"
+xattr -d com.apple.quarantine "$HOME/Desktop/Run podq.command" 2>/dev/null || true
+
 # Pre-warm Whisper, embedding, and LLM model caches
 echo "==> Pre-warming model caches..."
 /usr/local/bin/podq --warm-models
 
 echo ""
 echo "==> podq installed successfully!"
+echo ""
+echo "Du kannst jetzt 'Run podq.command' auf deinem Desktop doppelklicken, um podq zu starten."
 echo ""
 echo "=========================================="
 echo "  AUTOMATOR SETUP (do this once)"
