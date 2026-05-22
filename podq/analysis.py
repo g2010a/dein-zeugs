@@ -11,16 +11,21 @@ from podq import __version__
 log = logging.getLogger("podq")
 
 SUMMARY_PROMPT = (
-    "Fasse die folgende Hörerfrage in 1-2 Sätzen zusammen. "
-    "Verwende NUR Informationen aus dem Text – erfinde nichts dazu. "
-    "Antworte auf Deutsch. Wenn der Text nicht auf Deutsch ist, antworte in der Originalsprache.\n"
+    "Fasse den folgenden Text in einem einzigen kurzen Satz zusammen. "
+    "Schreibe NUR diesen einen Satz – keine Erklärungen, keine Hinweise, keine Anmerkungen.\n\n"
+    "Text: Ich würde gerne Gandhi treffen, das ist bestimmt spannend.\n"
+    "Zusammenfassung: Die Person möchte gerne Gandhi treffen.\n\n"
+    "Text: Mein Lieblingssport ist Laufen, weil man es spontan alleine oder mit anderen machen kann.\n"
+    "Zusammenfassung: Laufen ist der Lieblingssport, weil es flexibel und spontan ist.\n\n"
     "Text: {transcript}\n"
     "Zusammenfassung:"
 )
 
 KEYWORDS_PROMPT = (
-    "Extrahiere 3-5 einzelne Schlüsselwörter (keine Sätze oder Phrasen) aus dem folgenden Text. "
-    "Gib nur die Wörter kommagetrennt zurück, keine Erklärungen.\n"
+    "Gib 3 bis 5 Schlüsselwörter aus dem folgenden Text zurück. "
+    "Nur einzelne Wörter, kommagetrennt, keine Sätze, keine Erklärungen.\n\n"
+    "Text: Ich schwimme gerne, weil ich meinen Kopf abschalten kann und es die Gelenke schont.\n"
+    "Schlüsselwörter: schwimmen, gelenke, entspannung\n\n"
     "Text: {transcript}\n"
     "Schlüsselwörter:"
 )
