@@ -1,23 +1,14 @@
 // Collapsing of top-level sections is handled natively by <details>/<summary>.
 
 document.addEventListener('DOMContentLoaded', function () {
-  // Expand / collapse all transcripts on the page
-  var expandBtn = document.getElementById('expand-all-transcripts');
-  var collapseBtn = document.getElementById('collapse-all-transcripts');
-
-  if (expandBtn) {
-    expandBtn.addEventListener('click', function () {
-      document.querySelectorAll('.transcript-details').forEach(function (d) {
-        d.open = true;
-      });
-    });
-  }
-
-  if (collapseBtn) {
-    collapseBtn.addEventListener('click', function () {
-      document.querySelectorAll('.transcript-details').forEach(function (d) {
-        d.open = false;
-      });
+  // Toggle expand/collapse all transcripts
+  var toggleBtn = document.getElementById('toggle-all-transcripts');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', function () {
+      var details = document.querySelectorAll('.transcript-details');
+      var allOpen = Array.from(details).every(function (d) { return d.open; });
+      details.forEach(function (d) { d.open = !allOpen; });
+      toggleBtn.textContent = allOpen ? 'Alle aufklappen' : 'Alle zuklappen';
     });
   }
 
