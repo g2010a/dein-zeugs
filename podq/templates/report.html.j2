@@ -163,7 +163,7 @@
         <ul class="clusters">
           {% for cluster in new_only_clusters %}
           <li class="cluster">
-            <strong>Cluster ({{ cluster|length }} Fragen):</strong>
+            <strong>{{ cluster[0] }} <span class="chip">{{ cluster|length }} Fragen</span></strong>
             <ul>
               {% for stem in cluster %}
               <li>{{ stem }}</li>
@@ -182,7 +182,7 @@
         <ul class="clusters">
           {% for cluster in mixed_clusters %}
           <li class="cluster">
-            <strong>Cluster ({{ cluster|length }} Fragen):</strong>
+            <strong>{{ cluster[0] }} <span class="chip">{{ cluster|length }} Fragen</span></strong>
             <ul>
               {% for stem in cluster %}
               <li>{{ stem }}</li>
