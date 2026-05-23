@@ -8,7 +8,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>podq Report</title>
-  <style>{{ css }}</style>
+  <style>{{ css | safe }}</style>
 </head>
 <body>
   <nav class="sticky-nav">
@@ -257,6 +257,6 @@
     </details>
   </main>
 
-  <script>{{ js }}</script>
+  <script>{{ js | safe }}</script>
 </body>
 </html>
