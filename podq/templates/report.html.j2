@@ -57,7 +57,7 @@
             <div class="bar-fill {% if item.standout_score >= 0.7 %}bar-green{% elif item.standout_score >= 0.4 %}bar-amber{% else %}bar-red{% endif %}"
                  style="width: {{ (item.standout_score * 100)|round|int }}%"></div>
           </div>
-          <div class="card-meta">Score: {{ "%.2f"|format(item.standout_score) }}</div>
+          <div class="card-meta">Neuheitswert: {{ "%.2f"|format(item.standout_score) }}</div>
           {% if item.nearest_aired_stem %}
           <div class="card-meta">
             Ähnelt ausgestrahlter Frage: <span class="chip">{{ item.nearest_aired_stem }}</span>
@@ -100,7 +100,7 @@
             <div class="bar-fill bar-red"
                  style="width: {{ (item.novelty_score * 100)|round|int }}%"></div>
           </div>
-          <div class="card-meta">Ähnlichkeit: {{ "%.2f"|format(item.similarity_score) }} · Neuheit: {{ "%.2f"|format(item.novelty_score) }}</div>
+          <div class="card-meta">Ähnlichkeit: {{ "%.2f"|format(item.similarity_score) }} · Neuheitswert: {{ "%.2f"|format(item.novelty_score) }}</div>
           {{ transcript_block(item.transcript) }}
         </div>
         {% endfor %}
@@ -122,8 +122,7 @@
             <th>Transkript</th>
             <th>Schlagwörter</th>
             <th>Ähnlichkeit</th>
-            <th>Neuheit</th>
-            <th>Nächste ausgestrahlte Frage</th>
+            <th>Neuheitswert</th>
           </tr>
         </thead>
         <tbody>
@@ -135,7 +134,6 @@
             <td>{{ item.keywords | join(", ") }}</td>
             <td>{{ "%.2f"|format(item.similarity_score) }}</td>
             <td>{{ "%.2f"|format(item.novelty_score) }}</td>
-            <td>{{ item.nearest_aired_stem or "—" }}</td>
           </tr>
           {% endfor %}
         </tbody>
