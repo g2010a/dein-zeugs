@@ -397,6 +397,19 @@ tr.repeat:hover td {
   color: #0284c7;
 }
 
+/* ── Audio link ── */
+.audio-link {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.audio-link:hover {
+  text-decoration: underline;
+}
+
 /* ── Transcript global toolbar ── */
 .transcript-toolbar {
   display: flex;
