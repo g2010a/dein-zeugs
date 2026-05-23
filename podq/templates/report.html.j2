@@ -17,7 +17,6 @@
     <a href="#processed">Alle Fragen ({{ processed|length }})</a>
     <a href="#clusters">Cluster ({{ clusters|length }})</a>
     <a href="#aired">Ausgestrahlt ({{ aired|length }})</a>
-    <a href="#unprocessed">Unverarbeitet ({{ unprocessed|length }})</a>
   </nav>
 
   <main>
@@ -234,27 +233,6 @@
       {% endif %}
     </details>
 
-    {# ── 6. Unverarbeitete Dateien ── #}
-    <details id="unprocessed">
-      <summary><h2>Unverarbeitete Dateien</h2></summary>
-      {% if unprocessed %}
-      <table>
-        <thead>
-          <tr><th>Stem</th><th>Status</th></tr>
-        </thead>
-        <tbody>
-          {% for item in unprocessed %}
-          <tr>
-            <td class="stem">{{ item.stem }}</td>
-            <td>{{ item.status }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <p class="empty">Keine unverarbeiteten Dateien.</p>
-      {% endif %}
-    </details>
   </main>
 
   <script>{{ js | safe }}</script>

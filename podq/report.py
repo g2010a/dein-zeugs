@@ -70,15 +70,7 @@ def render_report(paths: ProjectPaths, config) -> Path:
         if item["similarity_score"] >= config.similarity_threshold
     ]
 
-    # 5. Unprocessed
-    unprocessed_items = []
-    for mp3 in sorted(paths.inbox.glob("*.mp3")) if paths.inbox.exists() else []:
-        stem = normalize_stem(mp3.stem)
-        yaml_path = paths.analysis / f"{stem}.yaml"
-        if not yaml_path.exists():
-            unprocessed_items.append({"stem": stem, "status": "noch nicht verarbeitet"})
-
-    # 6. Clusters — reload with embeddings
+    # 5. Clusters — reload with embeddings
     processed_with_emb = []
     for yaml_file in paths.analysis.glob("*.yaml"):
         try:
@@ -119,7 +111,6 @@ def render_report(paths: ProjectPaths, config) -> Path:
     html = template.render(
         aired=aired_items,
         processed=processed_items,
-        unprocessed=unprocessed_items,
         clusters=clusters,
         standouts=standouts,
         standouts_count=standouts_count,

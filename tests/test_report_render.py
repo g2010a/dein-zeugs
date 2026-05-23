@@ -77,7 +77,7 @@ def test_report_sections(tmp_path):
     # Check sections exist
     assert soup.find(id="aired") is not None
     assert soup.find(id="processed") is not None
-    assert soup.find(id="unprocessed") is not None
+    assert soup.find(id="unprocessed") is None
 
     # Check content placement
     aired_section = str(soup.find(id="aired"))
@@ -85,9 +85,6 @@ def test_report_sections(tmp_path):
 
     processed_section = str(soup.find(id="processed"))
     assert "caller_001" in processed_section
-
-    unprocessed_section = str(soup.find(id="unprocessed"))
-    assert "caller_002" in unprocessed_section
 
 
 def test_repeat_row_highlighted(tmp_path):
