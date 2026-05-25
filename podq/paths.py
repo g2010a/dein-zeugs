@@ -49,3 +49,14 @@ def unprocessed_audio(paths: ProjectPaths) -> list[Path]:
         if not (paths.analysis / f"{stem}.yaml").exists():
             result.append(mp3)
     return result
+
+
+def unprocessed_aired_audio(paths: ProjectPaths) -> list[Path]:
+    if not paths.aired.exists():
+        return []
+    result = []
+    for mp3 in paths.aired.glob("*.mp3"):
+        stem = normalize_stem(mp3.stem)
+        if not (paths.analysis / f"{stem}.yaml").exists():
+            result.append(mp3)
+    return result

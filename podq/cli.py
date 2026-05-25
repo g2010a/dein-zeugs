@@ -7,7 +7,7 @@ import traceback
 from pathlib import Path
 
 from podq.config import Config
-from podq.paths import ProjectPaths
+from podq.paths import ProjectPaths, unprocessed_aired_audio
 from podq.analysis import process_all_unprocessed
 from podq.embedding import EmbeddingModel
 from podq.models import ensure_llm_model, ensure_whisper_model, patch_tqdm, clean_downloads, clean_outputs
@@ -102,9 +102,10 @@ def main(argv=None):
         paths = ProjectPaths(root, analysis_dir=config.analysis_dir, reports_dir=config.reports_dir)
         paths.ensure_dirs()
 
-        # If the inbox has no MP3 files, render the Getting Started welcome page and exit.
+        # If there is nothing to process (no inbox MP3s and no unanalyzed aired items),
+        # render the Getting Started welcome page and exit.
         mp3s = list(paths.inbox.glob("*.mp3")) if paths.inbox.exists() else []
-        if not mp3s:
+        if not mp3s and not unprocessed_aired_audio(paths):
             report_path = _render_getting_started(paths)
             _open_report(report_path)
             return 0

@@ -1,6 +1,6 @@
 import unicodedata
 from pathlib import Path
-from podq.paths import ProjectPaths, normalize_stem, unprocessed_audio
+from podq.paths import ProjectPaths, normalize_stem, unprocessed_audio, unprocessed_aired_audio
 
 
 def _make_paths(tmp_path: Path) -> ProjectPaths:
@@ -44,6 +44,37 @@ def test_unprocessed_audio_skips_mp3s_with_yaml(tmp_path):
 
     result = unprocessed_audio(paths)
     assert result == []
+
+
+def test_unprocessed_aired_audio_returns_mp3s_without_yaml(tmp_path):
+    (tmp_path / "inbox").mkdir()
+    (tmp_path / "analysis").mkdir()
+    (tmp_path / "aired").mkdir()
+    paths = ProjectPaths(root=tmp_path)
+    (paths.aired / "old_ep.mp3").touch()
+    (paths.aired / "new_ep.mp3").touch()
+    (paths.analysis / "old_ep.yaml").touch()  # already analyzed
+
+    result = unprocessed_aired_audio(paths)
+    assert {p.stem for p in result} == {"new_ep"}
+
+
+def test_unprocessed_aired_audio_skips_mp3s_with_yaml(tmp_path):
+    (tmp_path / "inbox").mkdir()
+    (tmp_path / "analysis").mkdir()
+    (tmp_path / "aired").mkdir()
+    paths = ProjectPaths(root=tmp_path)
+    (paths.aired / "episode.mp3").touch()
+    (paths.analysis / "episode.yaml").touch()
+
+    assert unprocessed_aired_audio(paths) == []
+
+
+def test_unprocessed_aired_audio_empty_when_no_aired_dir(tmp_path):
+    (tmp_path / "inbox").mkdir()
+    (tmp_path / "analysis").mkdir()
+    paths = ProjectPaths(root=tmp_path)
+    assert unprocessed_aired_audio(paths) == []
 
 
 def test_nfc_normalization(tmp_path):

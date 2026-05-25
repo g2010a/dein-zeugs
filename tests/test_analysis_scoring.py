@@ -82,6 +82,45 @@ from podq.analysis import process_all_unprocessed
 from podq.paths import ProjectPaths
 
 
+def test_process_all_unprocessed_analyzes_aired_without_yaml(tmp_path):
+    """Aired MP3s without a YAML are transcribed and analyzed."""
+    (tmp_path / "inbox").mkdir()
+    (tmp_path / "analysis").mkdir()
+    (tmp_path / "aired").mkdir()
+
+    mp3 = tmp_path / "aired" / "aired_ep.mp3"
+    mp3.touch()
+
+    paths = ProjectPaths(root=tmp_path)
+    fake_embedding = _unit(np.array([0.5, 0.5, 0.0]))
+
+    mock_config = MagicMock()
+    mock_config.llm_model_path = "/fake/model.gguf"
+    mock_config.whisper_model = "medium"
+
+    mock_model = MagicMock()
+    mock_model.embed.return_value = fake_embedding
+    mock_model.aired_corpus.return_value = []
+
+    mock_transcriber = MagicMock()
+    mock_transcriber.transcribe.return_value = "Hallo aus der Sendung."
+
+    with patch("podq.analysis.summarize", return_value="Begrüßung."), \
+         patch("podq.analysis.keywords", return_value=["begrüßung"]), \
+         patch("podq.transcription.WhisperTranscriber", return_value=mock_transcriber):
+        count = process_all_unprocessed(paths, mock_config, mock_model)
+
+    assert count == 1
+    yaml_path = tmp_path / "analysis" / "aired_ep.yaml"
+    assert yaml_path.exists()
+    data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+    assert data["stem"] == "aired_ep"
+    assert data["transcript"] == "Hallo aus der Sendung."
+    assert "embedding" in data
+    assert "summary" in data
+    assert "keywords" in data
+
+
 def test_process_all_unprocessed_yaml_schema(tmp_path):
     (tmp_path / "inbox").mkdir()
     (tmp_path / "analysis").mkdir()

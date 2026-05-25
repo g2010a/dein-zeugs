@@ -4,7 +4,7 @@ import numpy as np
 from datetime import datetime, timezone
 from pathlib import Path
 from podq.util.atomic import atomic_write
-from podq.paths import ProjectPaths, unprocessed_audio, normalize_stem
+from podq.paths import ProjectPaths, unprocessed_audio, unprocessed_aired_audio, normalize_stem
 from podq.embedding import EmbeddingModel
 from podq import __version__
 
@@ -182,6 +182,42 @@ def compute_intra_batch_scores(paths: ProjectPaths, aired_stems: set[str]) -> No
         log.info(f"Batch-Einzigartigkeit berechnet: {stem} → {intra:.4f}")
 
 
+def _analyze_one(
+    mp3: Path,
+    stem: str,
+    paths: ProjectPaths,
+    config,
+    transcriber,
+    embedding_model: EmbeddingModel,
+    aired_embeddings: list[tuple[str, np.ndarray]],
+) -> None:
+    text = transcriber.transcribe(mp3)
+    emb = embedding_model.embed(text)
+    sim, nov, nearest = score(emb, aired_embeddings)
+    summary_text = summarize(text, config.llm_model_path)
+    kws = keywords(text, config.llm_model_path)
+    data: dict = {
+        "stem": stem,
+        "transcript": text,
+        "summary": summary_text,
+        "keywords": kws,
+        "similarity_score": sim,
+        "novelty_score": nov,
+        "nearest_aired_stem": nearest,
+        "language": "auto",
+        "podq_version": __version__,
+        "analyzed_at": datetime.now(timezone.utc).isoformat(),
+        "embedding": emb.tolist(),
+    }
+    llm_err = get_llm_error()
+    if llm_err:
+        data["llm_error"] = llm_err
+    yaml_bytes = yaml.dump(
+        data, allow_unicode=True, default_flow_style=False, sort_keys=False
+    ).encode("utf-8")
+    atomic_write(paths.analysis / f"{stem}.yaml", yaml_bytes)
+
+
 def process_all_unprocessed(
     paths: ProjectPaths,
     config,
@@ -198,33 +234,13 @@ def process_all_unprocessed(
     for mp3 in unprocessed_audio(paths):
         stem = normalize_stem(mp3.stem)
         log.info(f"Transkription und Analyse: {mp3.name}")
-        text = transcriber.transcribe(mp3)
+        _analyze_one(mp3, stem, paths, config, transcriber, embedding_model, aired_embeddings)
+        count += 1
 
-        emb = embedding_model.embed(text)
-        sim, nov, nearest = score(emb, aired_embeddings)
-        summary_text = summarize(text, config.llm_model_path)
-        kws = keywords(text, config.llm_model_path)
-
-        data: dict = {
-            "stem": stem,
-            "transcript": text,
-            "summary": summary_text,
-            "keywords": kws,
-            "similarity_score": sim,
-            "novelty_score": nov,
-            "nearest_aired_stem": nearest,
-            "language": "auto",
-            "podq_version": __version__,
-            "analyzed_at": datetime.now(timezone.utc).isoformat(),
-            "embedding": emb.tolist(),
-        }
-        llm_err = get_llm_error()
-        if llm_err:
-            data["llm_error"] = llm_err
-        yaml_bytes = yaml.dump(
-            data, allow_unicode=True, default_flow_style=False, sort_keys=False
-        ).encode("utf-8")
-        atomic_write(paths.analysis / f"{stem}.yaml", yaml_bytes)
+    for mp3 in unprocessed_aired_audio(paths):
+        stem = normalize_stem(mp3.stem)
+        log.info(f"Transkription und Analyse (gesendet): {mp3.name}")
+        _analyze_one(mp3, stem, paths, config, transcriber, embedding_model, aired_embeddings)
         count += 1
 
     compute_intra_batch_scores(paths, aired_stems)

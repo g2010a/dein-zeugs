@@ -68,6 +68,38 @@ def test_cli_idempotency(tmp_path):
         assert process_calls[0] == 0
 
 
+def test_cli_empty_inbox_with_unanalyzed_aired_proceeds(tmp_path):
+    """Empty inbox but an aired MP3 without a YAML should proceed (not Getting Started)."""
+    root = tmp_path / "root"
+    for d in ["inbox", "analysis", "aired", "reports"]:
+        (root / d).mkdir(parents=True)
+    (root / "aired" / "old_show.mp3").touch()
+
+    process_calls = []
+
+    def mock_process(paths, config, embedding_model):
+        import yaml
+        data = {"stem": "old_show", "transcript": "test", "summary": "test",
+                "keywords": [], "similarity_score": 0.0, "novelty_score": 1.0,
+                "nearest_aired_stem": None, "embedding": [0.1] * 384,
+                "language": "auto", "podq_version": "1.0.0",
+                "analyzed_at": "2026-05-25T00:00:00+00:00"}
+        (paths.analysis / "old_show.yaml").write_text(
+            yaml.dump(data, allow_unicode=True, default_flow_style=False, sort_keys=False))
+        process_calls.append(1)
+        return 1
+
+    with patch("podq.cli.ensure_llm_model"), \
+         patch("podq.cli.process_all_unprocessed", side_effect=mock_process), \
+         patch("podq.cli.render_report", return_value=None), \
+         patch("podq.cli.EmbeddingModel", return_value=MagicMock()):
+        from podq.cli import main
+        result = main([str(root)])
+
+    assert result == 0
+    assert len(process_calls) >= 1
+
+
 def test_cli_empty_inbox_renders_getting_started(tmp_path):
     """Empty inbox renders the Getting Started page (not render_report) and exits 0."""
     root = tmp_path / "empty_root"
