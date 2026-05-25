@@ -136,14 +136,13 @@ def test_process_all_unprocessed_aired_items_see_each_other_in_same_pass(tmp_pat
     # near-identical embeddings — should produce high similarity between them
     emb_a = _unit(np.array([1.0, 0.0, 0.0]))
     emb_b = _unit(np.array([1.0, 0.01, 0.0]))
-    embed_calls = iter([emb_a, emb_b])
 
     mock_config = MagicMock()
     mock_config.llm_model_path = "/fake/model.gguf"
     mock_config.whisper_model = "medium"
 
     mock_model = MagicMock()
-    mock_model.embed.side_effect = lambda _: next(embed_calls)
+    mock_model.embed.side_effect = [emb_a, emb_b]
     mock_model.aired_corpus.return_value = []  # nothing pre-existing
 
     mock_transcriber = MagicMock()
