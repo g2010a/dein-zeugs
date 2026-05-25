@@ -27,4 +27,12 @@ document.addEventListener('DOMContentLoaded', function () {
       e.target.textContent = 'Mehr anzeigen';
     }
   });
+
+  // Auto-open target <details> section when a nav link is clicked
+  document.querySelectorAll('.sticky-nav a[href^="#"]').forEach(function (link) {
+    link.addEventListener('click', function () {
+      var el = document.getElementById(link.getAttribute('href').slice(1));
+      if (el && el.tagName === 'DETAILS') el.open = true;
+    });
+  });
 });
