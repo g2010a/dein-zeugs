@@ -113,6 +113,54 @@ def test_process_all_unprocessed_analyzes_aired_without_yaml(tmp_path):
     assert "embedding" in data
     assert "summary" in data
     assert "keywords" in data
+    assert "similarity_score" in data
+    assert "novelty_score" in data
+    # Aired items are not part of an inbox batch; these fields must be absent.
+    assert "intra_batch_uniqueness" not in data
+    assert "standout_score" not in data
+
+
+def test_process_all_unprocessed_aired_items_see_each_other_in_same_pass(tmp_path):
+    """Two aired items in the same pass: the second should be scored against the first."""
+    (tmp_path / "inbox").mkdir()
+    (tmp_path / "analysis").mkdir()
+    (tmp_path / "aired").mkdir()
+
+    mp3_a = tmp_path / "aired" / "aired_a.mp3"
+    mp3_b = tmp_path / "aired" / "aired_b.mp3"
+    mp3_a.touch()
+    mp3_b.touch()
+
+    paths = ProjectPaths(root=tmp_path)
+
+    # near-identical embeddings — should produce high similarity between them
+    emb_a = _unit(np.array([1.0, 0.0, 0.0]))
+    emb_b = _unit(np.array([1.0, 0.01, 0.0]))
+    embed_calls = iter([emb_a, emb_b])
+
+    mock_config = MagicMock()
+    mock_config.llm_model_path = "/fake/model.gguf"
+    mock_config.whisper_model = "medium"
+
+    mock_model = MagicMock()
+    mock_model.embed.side_effect = lambda _: next(embed_calls)
+    mock_model.aired_corpus.return_value = []  # nothing pre-existing
+
+    mock_transcriber = MagicMock()
+    mock_transcriber.transcribe.return_value = "Irgendein Text."
+
+    with patch("podq.analysis.summarize", return_value="Test."), \
+         patch("podq.analysis.keywords", return_value=["test"]), \
+         patch("podq.transcription.WhisperTranscriber", return_value=mock_transcriber):
+        count = process_all_unprocessed(paths, mock_config, mock_model)
+
+    assert count == 2
+    data_b = yaml.safe_load(
+        (tmp_path / "analysis" / "aired_b.yaml").read_text(encoding="utf-8")
+    )
+    # aired_b should recognise aired_a as its nearest neighbor (high similarity)
+    assert data_b["nearest_aired_stem"] == "aired_a"
+    assert data_b["similarity_score"] > 0.9
 
 
 def test_process_all_unprocessed_yaml_schema(tmp_path):

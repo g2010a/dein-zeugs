@@ -40,23 +40,18 @@ class ProjectPaths:
         self.reports.mkdir(parents=True, exist_ok=True)
 
 
-def unprocessed_audio(paths: ProjectPaths) -> list[Path]:
-    if not paths.inbox.exists():
+def _unprocessed_in(directory: Path, analysis: Path) -> list[Path]:
+    if not directory.exists():
         return []
-    result = []
-    for mp3 in paths.inbox.glob("*.mp3"):
-        stem = normalize_stem(mp3.stem)
-        if not (paths.analysis / f"{stem}.yaml").exists():
-            result.append(mp3)
-    return result
+    return [
+        mp3 for mp3 in directory.glob("*.mp3")
+        if not (analysis / f"{normalize_stem(mp3.stem)}.yaml").exists()
+    ]
+
+
+def unprocessed_audio(paths: ProjectPaths) -> list[Path]:
+    return _unprocessed_in(paths.inbox, paths.analysis)
 
 
 def unprocessed_aired_audio(paths: ProjectPaths) -> list[Path]:
-    if not paths.aired.exists():
-        return []
-    result = []
-    for mp3 in paths.aired.glob("*.mp3"):
-        stem = normalize_stem(mp3.stem)
-        if not (paths.analysis / f"{stem}.yaml").exists():
-            result.append(mp3)
-    return result
+    return _unprocessed_in(paths.aired, paths.analysis)

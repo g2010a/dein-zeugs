@@ -190,7 +190,7 @@ def _analyze_one(
     transcriber,
     embedding_model: EmbeddingModel,
     aired_embeddings: list[tuple[str, np.ndarray]],
-) -> None:
+) -> np.ndarray:
     text = transcriber.transcribe(mp3)
     emb = embedding_model.embed(text)
     sim, nov, nearest = score(emb, aired_embeddings)
@@ -216,6 +216,7 @@ def _analyze_one(
         data, allow_unicode=True, default_flow_style=False, sort_keys=False
     ).encode("utf-8")
     atomic_write(paths.analysis / f"{stem}.yaml", yaml_bytes)
+    return emb
 
 
 def process_all_unprocessed(
@@ -240,7 +241,10 @@ def process_all_unprocessed(
     for mp3 in unprocessed_aired_audio(paths):
         stem = normalize_stem(mp3.stem)
         log.info(f"Transkription und Analyse (gesendet): {mp3.name}")
-        _analyze_one(mp3, stem, paths, config, transcriber, embedding_model, aired_embeddings)
+        emb = _analyze_one(mp3, stem, paths, config, transcriber, embedding_model, aired_embeddings)
+        # Keep the corpus current so subsequent aired items in this pass see each other.
+        aired_embeddings.append((stem, emb))
+        aired_stems.add(stem)
         count += 1
 
     compute_intra_batch_scores(paths, aired_stems)
