@@ -237,6 +237,24 @@ tr.repeat:hover td {
   color: #64748b;
 }
 
+/* ── Card top row (rank + stem + error chip) ── */
+.card-top-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.card-top-row .card-stem {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Rank left-border accent ── */
+.card-rank-1 { border-left: 4px solid #fde047; }
+.card-rank-2 { border-left: 4px solid #94a3b8; }
+.card-rank-3 { border-left: 4px solid #fcd34d; }
+
 /* ── Chips ── */
 .chip {
   display: inline-block;
@@ -247,6 +265,11 @@ tr.repeat:hover td {
   font-size: 11px;
   font-weight: 500;
 }
+
+.chip-rank   { font-weight: 700; }
+.chip-rank-1 { background: #fef9c3; color: #713f12; border: 1px solid #fde047; }
+.chip-rank-2 { background: #f1f5f9; color: #475569; border: 1px solid #94a3b8; }
+.chip-rank-3 { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
 
 .chip-repeat {
   background: #fef3c7;

@@ -42,9 +42,12 @@
       {% if standouts %}
       <div class="card-list">
         {% for item in standouts %}
-        <div class="card">
-          <div class="card-stem">{{ item.stem }}</div>
-          {% if item.llm_error %}<span class="chip chip-error">&#x26A0; KI-Fehler</span>{% endif %}
+        <div class="card{% if loop.index <= 3 %} card-rank-{{ loop.index }}{% endif %}">
+          <div class="card-top-row">
+            {% if loop.index <= 3 %}<span class="chip chip-rank chip-rank-{{ loop.index }}">&#x2605; #{{ loop.index }}</span>{% endif %}
+            <div class="card-stem">{{ item.stem }}</div>
+            {% if item.llm_error %}<span class="chip chip-error">&#x26A0; KI-Fehler</span>{% endif %}
+          </div>
           <div class="card-summary">{{ item.summary }}</div>
           {% if item.keywords %}
           <div class="card-keywords">
