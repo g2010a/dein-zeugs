@@ -14,10 +14,24 @@
   <nav class="sticky-nav">
     <a href="#standouts">Highlights ({{ standouts|length }})</a>
     <a href="#repeats">Wiederholungen ({{ possible_repeats|length }})</a>
-    <a href="#processed">Alle Fragen ({{ processed|length }})</a>
+    <a href="#processed">Alle Fragen (<span id="nav-processed-count">{{ processed|length }}</span>)</a>
     <a href="#clusters">Cluster ({{ clusters|length }})</a>
     <a href="#aired">Ausgestrahlt ({{ aired|length }})</a>
+    <span class="nav-unseen" id="nav-unseen" hidden>&#x25CF; <span id="nav-unseen-count">0</span> ungesehen</span>
   </nav>
+
+  <div class="filter-bar">
+    <input type="search" id="q" placeholder="&#x1F50D; Suchen nach Stem, Zusammenfassung, Schlagwort&#x2026; (Taste /)" autocomplete="off">
+    <div class="filter-chips">
+      <button class="filter-btn" data-filter="unseen">Ungesehen</button>
+      <button class="filter-btn" data-filter="highlight">Highlights</button>
+      <button class="filter-btn" data-filter="repeat">Wiederholungen</button>
+      <button class="filter-btn" data-filter="error">KI-Fehler</button>
+      <button class="filter-btn" id="toggle-keyword-cloud" style="display:none">Schlagw&#246;rter &#x25BE;</button>
+      <button class="filter-btn" id="btn-reset-seen">Gesehen zur&#252;cksetzen</button>
+    </div>
+  </div>
+  <div id="keyword-cloud" class="keyword-cloud" style="display:none"></div>
 
   <main>
     {# ── Banner ── #}
@@ -42,7 +56,7 @@
       {% if standouts %}
       <div class="card-list">
         {% for item in standouts %}
-        <div class="card{% if loop.index <= 3 %} card-rank-{{ loop.index }}{% endif %}">
+        <div class="card{% if loop.index <= 3 %} card-rank-{{ loop.index }}{% endif %}" data-stem="{{ item.stem }}" data-summary="{{ item.summary }}" data-keywords="{{ item.keywords | join(',') | lower }}" data-novelty="{{ item.standout_score }}" data-section="highlight"{% if item.llm_error %} data-error="1"{% endif %}>
           <div class="card-top-row">
             {% if loop.index <= 3 %}<span class="chip chip-rank chip-rank-{{ loop.index }}">&#x2605; #{{ loop.index }}</span>{% endif %}
             <div class="card-stem">{{ item.stem }}</div>
@@ -52,15 +66,17 @@
           {% if item.keywords %}
           <div class="card-keywords">
             {% for kw in item.keywords %}
-            <span class="chip">{{ kw }}</span>
+            <span class="chip chip-kw" data-kw="{{ kw | lower }}">{{ kw }}</span>
             {% endfor %}
           </div>
           {% endif %}
-          <div class="bar">
-            <div class="bar-fill {% if item.standout_score >= 0.7 %}bar-green{% elif item.standout_score >= 0.4 %}bar-amber{% else %}bar-red{% endif %}"
-                 style="width: {{ (item.standout_score * 100)|round|int }}%"></div>
+          <div class="card-novelty-row">
+            <div class="bar">
+              <div class="bar-fill {% if item.standout_score >= 0.7 %}bar-green{% elif item.standout_score >= 0.4 %}bar-amber{% else %}bar-red{% endif %}"
+                   style="width: {{ (item.standout_score * 100)|round|int }}%"></div>
+            </div>
+            <span class="card-meta">Neuheitswert: <strong>{{ "%.2f"|format(item.standout_score) }}</strong></span>
           </div>
-          <div class="card-meta">Neuheitswert: {{ "%.2f"|format(item.standout_score) }}</div>
           {% if item.nearest_aired_stem %}
           <div class="card-meta">
             Ähnelt ausgestrahlter Frage: <span class="chip">{{ item.nearest_aired_stem }}</span>
@@ -87,7 +103,7 @@
       {% if possible_repeats %}
       <div class="card-list">
         {% for item in possible_repeats %}
-        <div class="card card-repeat">
+        <div class="card card-repeat" data-stem="{{ item.stem }}" data-summary="{{ item.summary }}" data-keywords="{{ item.keywords | join(',') | lower }}" data-novelty="{{ item.novelty_score }}" data-similarity="{{ item.similarity_score }}" data-section="repeat"{% if item.llm_error %} data-error="1"{% endif %}>
           <div class="card-stem">{{ item.stem }}</div>
           {% if item.nearest_aired_stem %}
           <span class="chip chip-repeat">&#x1F501; ähnelt {{ item.nearest_aired_stem }}</span>
@@ -96,15 +112,17 @@
           {% if item.keywords %}
           <div class="card-keywords">
             {% for kw in item.keywords %}
-            <span class="chip">{{ kw }}</span>
+            <span class="chip chip-kw" data-kw="{{ kw | lower }}">{{ kw }}</span>
             {% endfor %}
           </div>
           {% endif %}
-          <div class="bar">
-            <div class="bar-fill bar-red"
-                 style="width: {{ (item.novelty_score * 100)|round|int }}%"></div>
+          <div class="card-novelty-row">
+            <div class="bar">
+              <div class="bar-fill bar-red"
+                   style="width: {{ (item.novelty_score * 100)|round|int }}%"></div>
+            </div>
+            <span class="card-meta">Ähnlichkeit: {{ "%.2f"|format(item.similarity_score) }} · Neuheitswert: {{ "%.2f"|format(item.novelty_score) }}</span>
           </div>
-          <div class="card-meta">Ähnlichkeit: {{ "%.2f"|format(item.similarity_score) }} · Neuheitswert: {{ "%.2f"|format(item.novelty_score) }}</div>
           {{ transcript_block(item.transcript) }}
           <div class="aired-hint">
             <a class="audio-link" href="file://{{ inbox_path }}/{{ item.stem }}.mp3" target="_blank">&#x25B6; Audio</a>
@@ -119,27 +137,27 @@
 
     {# ── 3. Alle verarbeiteten Fragen (Tabelle) ── #}
     <details id="processed">
-      <summary><h2>Alle verarbeiteten Fragen</h2></summary>
+      <summary><h2>Alle verarbeiteten Fragen <span class="live-count" id="processed-count"></span></h2></summary>
       {% if processed %}
-      <table>
+      <table id="processed-table">
         <thead>
           <tr>
-            <th>Stem</th>
+            <th data-sort="stem">Stem <span class="sort-icon"></span></th>
             <th>Zusammenfassung</th>
             <th>Transkript</th>
             <th>Schlagwörter</th>
-            <th>Ähnlichkeit</th>
-            <th>Neuheitswert</th>
+            <th data-sort="similarity">Ähnlichkeit <span class="sort-icon"></span></th>
+            <th data-sort="novelty" class="sort-active sort-desc">Neuheitswert <span class="sort-icon">&#x25BC;</span></th>
             <th>Audio</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="processed-tbody">
           {% for item in processed %}
-          <tr{% if item.similarity_score >= threshold %} class="repeat"{% endif %}>
+          <tr{% if item.similarity_score >= threshold %} class="repeat"{% endif %} data-stem="{{ item.stem }}" data-summary="{{ item.summary }}" data-keywords="{{ item.keywords | join(',') | lower }}" data-similarity="{{ item.similarity_score }}" data-novelty="{{ item.novelty_score }}" data-section="processed"{% if item.llm_error %} data-error="1"{% endif %}>
             <td class="stem">{{ item.stem }}{% if item.llm_error %} <span class="chip chip-error">&#x26A0;</span>{% endif %}</td>
             <td>{{ item.summary }}</td>
             <td>{{ transcript_block(item.transcript) }}</td>
-            <td>{{ item.keywords | join(", ") }}</td>
+            <td>{% for kw in item.keywords %}<span class="chip chip-kw" data-kw="{{ kw | lower }}">{{ kw }}</span> {% endfor %}</td>
             <td>{{ "%.2f"|format(item.similarity_score) }}</td>
             <td>{{ "%.2f"|format(item.novelty_score) }}</td>
             <td><a class="audio-link" href="file://{{ inbox_path }}/{{ item.stem }}.mp3" target="_blank">&#x25B6;</a></td>
@@ -147,6 +165,18 @@
           {% endfor %}
         </tbody>
       </table>
+      <div class="table-footer">
+        <div class="pagination" id="pagination-controls"></div>
+        <div class="table-page-size">
+          Zeilen:
+          <select id="page-size">
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="0">Alle</option>
+          </select>
+        </div>
+      </div>
       <p class="note">Amber markierte Zeilen haben eine Ähnlichkeit &ge; {{ "%.2f"|format(threshold) }} und könnten Wiederholungen sein.</p>
       {% else %}
       <p class="empty">Keine verarbeiteten Fragen gefunden.</p>
@@ -226,7 +256,7 @@
         </thead>
         <tbody>
           {% for item in aired %}
-          <tr>
+          <tr data-stem="{{ item.stem }}" data-summary="{{ item.summary }}" data-section="aired">
             <td class="stem">{{ item.stem }}</td>
             <td>{{ item.summary }}</td>
             <td>{{ transcript_block(item.transcript) }}</td>
