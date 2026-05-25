@@ -4,7 +4,8 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from podq.analysis import compute_intra_batch_scores
+from podq.analysis import compute_intra_batch_scores, score, keywords, process_all_unprocessed
+from podq.paths import ProjectPaths
 
 
 def _unit(v: np.ndarray) -> np.ndarray:
@@ -15,8 +16,6 @@ def _unit(v: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # score()
 # ---------------------------------------------------------------------------
-
-from podq.analysis import score
 
 
 def test_score_identical_embeddings():
@@ -57,8 +56,6 @@ def test_score_returns_correct_nearest_stem():
 # keywords()
 # ---------------------------------------------------------------------------
 
-from podq.analysis import keywords
-
 
 def test_keywords_comma_split():
     with patch("podq.analysis._infer", return_value="sport, ernährung, gesundheit, bewegung, fitness"):
@@ -77,9 +74,6 @@ def test_keywords_newline_handling():
 # ---------------------------------------------------------------------------
 # process_all_unprocessed() — YAML schema test
 # ---------------------------------------------------------------------------
-
-from podq.analysis import process_all_unprocessed
-from podq.paths import ProjectPaths
 
 
 def test_process_all_unprocessed_analyzes_aired_without_yaml(tmp_path):
