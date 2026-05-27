@@ -1,5 +1,4 @@
 import os
-import pytest
 from pathlib import Path
 from unittest.mock import patch
 
@@ -19,7 +18,7 @@ def _make_root(tmp_path: Path) -> Path:
 
 def test_clean_outputs_removes_output_files(tmp_path):
     root = _make_root(tmp_path)
-    from podq.cli import main
+    from dein_zeugs.cli import main
     result = main([str(root), "--clean-outputs", "--yes"])
     assert result == 0
     assert not (root / "analysis" / "episode.json").exists()
@@ -28,14 +27,14 @@ def test_clean_outputs_removes_output_files(tmp_path):
 
 def test_clean_outputs_preserves_inbox(tmp_path):
     root = _make_root(tmp_path)
-    from podq.cli import main
+    from dein_zeugs.cli import main
     main([str(root), "--clean-outputs", "--yes"])
     assert (root / "inbox" / "episode.mp3").exists()
 
 
 def test_clean_outputs_recreates_empty_dirs(tmp_path):
     root = _make_root(tmp_path)
-    from podq.cli import main
+    from dein_zeugs.cli import main
     main([str(root), "--clean-outputs", "--yes"])
     assert (root / "analysis").is_dir()
     assert (root / "reports").is_dir()
@@ -51,7 +50,7 @@ def test_clean_outputs_respects_config_dirs(tmp_path):
     (root / "config.toml").write_text(
         "[paths]\nanalysis_dir = \"my_analysis\"\n"
     )
-    from podq.cli import main
+    from dein_zeugs.cli import main
     result = main([str(root), "--clean-outputs", "--yes"])
     assert result == 0
     assert not (root / "my_analysis" / "ep.yaml").exists()
@@ -60,15 +59,15 @@ def test_clean_outputs_respects_config_dirs(tmp_path):
 
 def test_cli_clean_outputs_flag_calls_clean_outputs():
     """--clean-outputs calls clean_outputs with a ProjectPaths and returns 0."""
-    import tempfile, os
+    import tempfile
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
-        with patch("podq.cli.clean_outputs") as mock_clean:
-            from podq.cli import main
+        with patch("dein_zeugs.cli.clean_outputs") as mock_clean:
+            from dein_zeugs.cli import main
             result = main([str(root), "--clean-outputs"])
         assert result == 0
         mock_clean.assert_called_once()
         args, kwargs = mock_clean.call_args
-        from podq.paths import ProjectPaths
+        from dein_zeugs.paths import ProjectPaths
         assert isinstance(args[0], ProjectPaths)
         assert kwargs.get("yes", False) is False

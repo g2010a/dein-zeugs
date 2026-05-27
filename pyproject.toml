@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "podq"
+name = "dein-zeugs"
 version = "1.0.0"
 requires-python = ">=3.11,<3.14"
 dependencies = [
@@ -19,8 +19,8 @@ dependencies = [
 dev = ["pytest>=7", "pytest-cov"]
 
 [project.scripts]
-podq = "podq.cli:main"
+dein-zeugs = "dein_zeugs.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["podq*"]
+include = ["dein_zeugs*"]

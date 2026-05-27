@@ -5,12 +5,12 @@ import sys
 import traceback
 from pathlib import Path
 
-from podq.config import Config
-from podq.paths import ProjectPaths, unprocessed_aired_audio
-from podq.analysis import process_all_unprocessed
-from podq.embedding import EmbeddingModel
-from podq.models import ensure_llm_model, ensure_whisper_model, patch_tqdm, clean_downloads, clean_outputs
-from podq.report import render_report
+from dein_zeugs.config import Config
+from dein_zeugs.paths import ProjectPaths, unprocessed_aired_audio
+from dein_zeugs.analysis import process_all_unprocessed
+from dein_zeugs.embedding import EmbeddingModel
+from dein_zeugs.models import ensure_llm_model, ensure_whisper_model, patch_tqdm, clean_downloads, clean_outputs
+from dein_zeugs.report import render_report
 
 
 def _reconfigure_streams() -> None:
@@ -47,11 +47,11 @@ def main(argv=None):
     _reconfigure_streams()
 
     import argparse
-    from podq.util.logging import setup_logging
+    from dein_zeugs.util.logging import setup_logging
     log = setup_logging()
 
     parser = argparse.ArgumentParser(
-        description="podq — Podcast-Fragen-Verwalter",
+        description="dein-zeugs — Podcast-Fragen-Verwalter",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Erwartete Verzeichnisstruktur:\n"
@@ -60,7 +60,7 @@ def main(argv=None):
             "  {root}/reports/       HTML-Berichtausgabe\n"
             "  {root}/aired/         Bereits ausgestrahlte Episoden hierher verschieben\n"
             "\n"
-            "Ohne Angabe eines Wurzelverzeichnisses verwendet podq standardmäßig ~/Podq/ und legt fehlende Unterverzeichnisse automatisch an."
+            "Ohne Angabe eines Wurzelverzeichnisses verwendet dein-zeugs standardmäßig ~/DeinZeugs/ und legt fehlende Unterverzeichnisse automatisch an."
         ),
     )
     parser.add_argument(
@@ -87,7 +87,7 @@ def main(argv=None):
     if args.root:
         root = Path(args.root).resolve()
     else:
-        root = (Path.home() / "Podq").resolve()
+        root = (Path.home() / "DeinZeugs").resolve()
 
     if args.clean_outputs:
         config = _load_config_optional(str(root))
@@ -111,7 +111,7 @@ def main(argv=None):
 
         ensure_llm_model(config.llm_model_path)
 
-        lock_path = root / ".podq.lock"
+        lock_path = root / ".dein_zeugs.lock"
         lock_file = open(lock_path, "w")
         try:
             # flock: if another instance holds it, exit immediately.
@@ -119,7 +119,7 @@ def main(argv=None):
             # instance exits on lock-contention (competing instances exit before writing to inbox).
             fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
-            log.info("Another podq instance is running, exiting.")
+            log.info("Another dein-zeugs instance is running, exiting.")
             return 0
 
         try:
@@ -142,7 +142,7 @@ def main(argv=None):
     except Exception:
         tb = traceback.format_exc()
         try:
-            log.error(f"podq failed:\n{tb}")
+            log.error(f"dein-zeugs failed:\n{tb}")
         except Exception:
             pass
         _write_error_report(root, tb)
@@ -211,9 +211,9 @@ def _write_error_report(root: Path, tb: str):
         reports.mkdir(parents=True, exist_ok=True)
         html = (
             "<html><body>"
-            "<h1>podq fehlgeschlagen</h1>"
+            "<h1>Dein Zeugs fehlgeschlagen</h1>"
             f"<pre>{tb}</pre>"
-            "<p>Details unter ~/Library/Logs/podq/podq.log</p>"
+            "<p>Details unter ~/Library/Logs/dein_zeugs/dein_zeugs.log</p>"
             "</body></html>"
         )
         (reports / "report.html").write_text(html)

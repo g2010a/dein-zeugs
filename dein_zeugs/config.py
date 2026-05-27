@@ -2,7 +2,7 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from podq.models import default_llm_path
+from dein_zeugs.models import default_llm_path
 
 _DEFAULT_TOML = """\
 [analysis]

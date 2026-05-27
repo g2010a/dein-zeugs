@@ -4,8 +4,8 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from podq.analysis import compute_intra_batch_scores, score, keywords, process_all_unprocessed
-from podq.paths import ProjectPaths
+from dein_zeugs.analysis import compute_intra_batch_scores, score, keywords, process_all_unprocessed
+from dein_zeugs.paths import ProjectPaths
 
 
 def _unit(v: np.ndarray) -> np.ndarray:
@@ -58,13 +58,13 @@ def test_score_returns_correct_nearest_stem():
 
 
 def test_keywords_comma_split():
-    with patch("podq.analysis._infer", return_value="sport, ernährung, gesundheit, bewegung, fitness"):
+    with patch("dein_zeugs.analysis._infer", return_value="sport, ernährung, gesundheit, bewegung, fitness"):
         result = keywords("some text", "/fake/model.gguf")
     assert result == ["sport", "ernährung", "gesundheit", "bewegung", "fitness"]
 
 
 def test_keywords_newline_handling():
-    with patch("podq.analysis._infer", return_value="sport\nernährung\ngesundheit"):
+    with patch("dein_zeugs.analysis._infer", return_value="sport\nernährung\ngesundheit"):
         result = keywords("some text", "/fake/model.gguf")
     assert "sport" in result
     assert "ernährung" in result
@@ -99,9 +99,9 @@ def test_process_all_unprocessed_analyzes_aired_without_yaml(tmp_path):
     mock_transcriber = MagicMock()
     mock_transcriber.transcribe.return_value = "Hallo aus der Sendung."
 
-    with patch("podq.analysis.summarize", return_value="Begrüßung."), \
-         patch("podq.analysis.keywords", return_value=["begrüßung"]), \
-         patch("podq.transcription.WhisperTranscriber", return_value=mock_transcriber):
+    with patch("dein_zeugs.analysis.summarize", return_value="Begrüßung."), \
+         patch("dein_zeugs.analysis.keywords", return_value=["begrüßung"]), \
+         patch("dein_zeugs.transcription.WhisperTranscriber", return_value=mock_transcriber):
         count = process_all_unprocessed(paths, mock_config, mock_model)
 
     assert count == 1
@@ -148,9 +148,9 @@ def test_process_all_unprocessed_aired_items_see_each_other_in_same_pass(tmp_pat
     mock_transcriber = MagicMock()
     mock_transcriber.transcribe.return_value = "Irgendein Text."
 
-    with patch("podq.analysis.summarize", return_value="Test."), \
-         patch("podq.analysis.keywords", return_value=["test"]), \
-         patch("podq.transcription.WhisperTranscriber", return_value=mock_transcriber):
+    with patch("dein_zeugs.analysis.summarize", return_value="Test."), \
+         patch("dein_zeugs.analysis.keywords", return_value=["test"]), \
+         patch("dein_zeugs.transcription.WhisperTranscriber", return_value=mock_transcriber):
         count = process_all_unprocessed(paths, mock_config, mock_model)
 
     assert count == 2
@@ -185,9 +185,9 @@ def test_process_all_unprocessed_yaml_schema(tmp_path):
     mock_transcriber = MagicMock()
     mock_transcriber.transcribe.return_value = "Wie oft sollte man Sport machen?"
 
-    with patch("podq.analysis.summarize", return_value="Eine Frage über Sport."), \
-         patch("podq.analysis.keywords", return_value=["sport", "fitness"]), \
-         patch("podq.transcription.WhisperTranscriber", return_value=mock_transcriber):
+    with patch("dein_zeugs.analysis.summarize", return_value="Eine Frage über Sport."), \
+         patch("dein_zeugs.analysis.keywords", return_value=["sport", "fitness"]), \
+         patch("dein_zeugs.transcription.WhisperTranscriber", return_value=mock_transcriber):
         count = process_all_unprocessed(paths, mock_config, mock_model)
 
     assert count == 1
@@ -199,7 +199,7 @@ def test_process_all_unprocessed_yaml_schema(tmp_path):
     required_fields = [
         "stem", "transcript", "summary", "keywords", "similarity_score",
         "novelty_score", "nearest_aired_stem", "embedding",
-        "language", "podq_version", "analyzed_at",
+        "language", "dein_zeugs_version", "analyzed_at",
         "intra_batch_uniqueness", "standout_score",
     ]
     for field in required_fields:
@@ -230,7 +230,7 @@ def _write_fake_yaml(analysis_dir: Path, stem: str, emb: np.ndarray, novelty: fl
         "novelty_score": novelty,
         "nearest_aired_stem": None,
         "language": "auto",
-        "podq_version": "0.0.0",
+        "dein_zeugs_version": "0.0.0",
         "analyzed_at": "2024-01-01T00:00:00+00:00",
         "embedding": emb.tolist(),
     }
@@ -252,7 +252,7 @@ def test_intra_batch_uniqueness_values(tmp_path):
     (tmp_path / "analysis").mkdir()
     (tmp_path / "aired").mkdir()
 
-    from podq.paths import ProjectPaths
+    from dein_zeugs.paths import ProjectPaths
 
     # Two near-duplicates: almost identical embeddings.
     dup_a = _unit(np.array([1.0, 0.01, 0.0]))
@@ -305,7 +305,7 @@ def test_intra_batch_single_item(tmp_path):
     (tmp_path / "analysis").mkdir()
     (tmp_path / "aired").mkdir()
 
-    from podq.paths import ProjectPaths
+    from dein_zeugs.paths import ProjectPaths
 
     emb = _unit(np.array([1.0, 0.0, 0.0]))
     (tmp_path / "inbox" / "solo.mp3").touch()
@@ -327,7 +327,7 @@ def test_intra_batch_scores_idempotent(tmp_path):
     (tmp_path / "analysis").mkdir()
     (tmp_path / "aired").mkdir()
 
-    from podq.paths import ProjectPaths
+    from dein_zeugs.paths import ProjectPaths
 
     dup_a = _unit(np.array([1.0, 0.01, 0.0]))
     dup_b = _unit(np.array([1.0, 0.02, 0.0]))

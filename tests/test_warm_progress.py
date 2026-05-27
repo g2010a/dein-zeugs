@@ -13,9 +13,8 @@ import io
 import sys
 import types
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 
-import pytest
 
 
 def _install_fake_tqdm(monkeypatch):
@@ -61,12 +60,12 @@ def test_warm_models_streams_progress_before_ready(tmp_path, monkeypatch):
     """`_warm_models` writes >= 3 distinct progress lines to stderr *before* LLM ready."""
     _install_fake_tqdm(monkeypatch)
 
-    from podq.config import Config
+    from dein_zeugs.config import Config
     # Re-import cli/models in a way that picks up the fake tqdm
     import importlib
-    import podq.models as _models
+    import dein_zeugs.models as _models
     importlib.reload(_models)
-    import podq.cli as _cli
+    import dein_zeugs.cli as _cli
     importlib.reload(_cli)
 
     config = Config(

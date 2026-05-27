@@ -3,7 +3,7 @@ import shutil
 import sys
 from pathlib import Path
 
-log = logging.getLogger("podq")
+log = logging.getLogger("dein_zeugs")
 
 
 def _make_forced_tqdm():
@@ -35,7 +35,7 @@ def patch_tqdm() -> None:
     except Exception:
         pass
 
-_MODEL_DIR = Path.home() / ".podq" / "models"
+_MODEL_DIR = Path.home() / ".dein_zeugs" / "models"
 _MODEL_FILE = "Llama-3.2-3B-Instruct-Q4_K_M.gguf"
 _MODEL_REPO_ID = "bartowski/Llama-3.2-3B-Instruct-GGUF"
 

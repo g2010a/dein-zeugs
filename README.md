@@ -1,125 +1,125 @@
-# podq — Podcast Question Manager
+# dein-zeugs — Podcast-Fragenverwaltung
 
-A macOS Apple Silicon CLI tool that transcribes recorded listener questions, ranks them by novelty against questions you've already aired, clusters near-duplicates, and produces an HTML report. Designed so a non-technical podcaster can drag MP3s in, double-click a Desktop launcher, and read the result in their browser.
+Ein macOS-CLI-Werkzeug für Apple Silicon, das aufgezeichnete Hörerfragen transkribiert, nach Neuheit gegenüber bereits ausgestrahlten Fragen bewertet, Duplikate clustert und einen HTML-Bericht erstellt. Konzipiert für nicht-technische Podcasterinnen und Podcaster: MP3s hineinziehen, Desktop-Starter doppelklicken, Ergebnis im Browser lesen.
 
-No Python, no Ollama, no source checkout required on the target machine — just the release archive.
+Kein Python, kein Ollama, kein Quellcode-Checkout auf dem Zielrechner erforderlich — nur das Release-Archiv.
 
-## Installation (end users)
+## Installation (Endnutzer)
 
-1. Download the latest release archive from the [releases page](../../releases/latest). It is a small archive (binary plus two scripts) — about 70 MB.
-2. Double-click the archive to unpack it. You'll get a folder containing three files:
-   - `podq` — the binary
-   - `install.sh` — installer script
-   - `Run podq.command` — Desktop launcher
-3. Open the unpacked folder in Terminal once (right-click the folder → *Services* → *New Terminal at Folder*) and run:
+1. Das neueste Release-Archiv von der [Releases-Seite](../../releases/latest) herunterladen. Es ist ein kleines Archiv (Binary plus zwei Skripte) — ca. 70 MB.
+2. Das Archiv durch Doppelklick entpacken. Es erscheint ein Ordner mit drei Dateien:
+   - `dein-zeugs` — das Programm
+   - `install.sh` — Installationsskript
+   - `Run dein-zeugs.command` — Desktop-Starter
+3. Den entpackten Ordner einmal im Terminal öffnen (Rechtsklick auf den Ordner → *Dienste* → *Neues Terminal im Ordner*) und ausführen:
    ```bash
    bash install.sh
    ```
-4. The installer will:
-   - Copy `podq` to `/usr/local/bin/`
-   - Strip the macOS quarantine bit so Gatekeeper allows it to run
-   - Place `Run podq.command` on your Desktop
-   - Pre-download all three model files (~2.3 GB total: Whisper + embedding + LLM). This step runs once and is **the only time** you need internet for podq. Progress bars stream in the Terminal during the download.
+4. Das Installationsskript erledigt folgendes:
+   - Kopiert `dein-zeugs` nach `/usr/local/bin/`
+   - Entfernt das macOS-Quarantäne-Bit, damit Gatekeeper das Programm zulässt
+   - Legt `Run dein-zeugs.command` auf dem Schreibtisch ab
+   - Lädt alle drei Modelldateien vorab herunter (~2,3 GB insgesamt: Whisper + Einbettungsmodell + LLM). Dieser Schritt erfolgt einmalig und ist **das einzige Mal**, dass eine Internetverbindung benötigt wird. Fortschrittsbalken erscheinen im Terminal.
 
-After install you may delete the unpacked folder. The installed binary in `/usr/local/bin/podq` is fully self-contained — it does not need the release archive, this repository, or any Python interpreter to run.
+Nach der Installation kann der entpackte Ordner gelöscht werden. Das installierte Programm unter `/usr/local/bin/dein-zeugs` ist vollständig in sich geschlossen — es benötigt weder das Release-Archiv noch dieses Repository noch einen Python-Interpreter.
 
-**Requirements:** macOS 14+, Apple Silicon (arm64).
+**Voraussetzungen:** macOS 14+, Apple Silicon (arm64).
 
-## Daily use (non-technical workflow)
+## Tägliche Nutzung (nicht-technischer Arbeitsablauf)
 
-1. Drop the MP3s of recorded listener questions into `~/Podq/inbox/`. (The `Podq/` folder and its subdirectories are created automatically on first run if they don't exist.)
-2. Double-click **Run podq.command** on your Desktop.
-3. A Terminal window pops up, podq transcribes and analyses each file, and the HTML report opens in your default browser when done. Each run also re-renders the report so it reflects whatever is currently in `inbox/` and `aired/`.
-4. After a question has aired on your show, drag its MP3 from `~/Podq/inbox/` into `~/Podq/aired/`. The next run will treat it as the reference corpus — new questions are scored for novelty against everything in `aired/`. The report itself links to both folders so you can do this drag in Finder without typing paths.
+1. Die MP3-Aufnahmen der Hörerfragen in `~/DeinZeugs/inbox/` ablegen. (Der Ordner `DeinZeugs/` und seine Unterordner werden beim ersten Start automatisch angelegt.)
+2. **Run dein-zeugs.command** auf dem Schreibtisch doppelklicken.
+3. Ein Terminalfenster öffnet sich. dein-zeugs transkribiert und analysiert jede Datei. Der HTML-Bericht öffnet sich danach automatisch im Standard-Browser. Jeder Start rendert den Bericht neu, sodass er den aktuellen Inhalt von `inbox/` und `aired/` widerspiegelt.
+4. Sobald eine Frage in der Sendung ausgestrahlt wurde, die MP3 von `~/DeinZeugs/inbox/` in `~/DeinZeugs/aired/` verschieben. Beim nächsten Start dient `aired/` als Referenzkorpus — neue Fragen werden auf Neuheit gegenüber allem in `aired/` bewertet. Der Bericht selbst enthält file://-Links zu beiden Ordnern, sodass das Verschieben direkt im Finder erfolgen kann.
 
-## Command-line use (optional)
+## Kommandozeilennutzung (optional)
 
-If you prefer Terminal:
+Für die Nutzung im Terminal:
 
 ```
-podq                       # uses ~/Podq/ by default
-podq /path/to/some/root    # uses a different project directory
-podq --warm-models         # pre-download model caches and exit
-podq --warm-models --skip-llm    # warm only Whisper + embedding
-podq --clean-outputs       # wipe analysis/ and reports/ (preserves inbox/)
-podq --clean-downloads     # delete cached model files
-podq --yes                 # skip confirmation prompts
+dein-zeugs                          # verwendet ~/DeinZeugs/ als Standard
+dein-zeugs /pfad/zum/projektordner  # verwendet ein anderes Projektverzeichnis
+dein-zeugs --warm-models            # Modell-Cache vorab herunterladen und beenden
+dein-zeugs --warm-models --skip-llm # nur Whisper + Einbettungsmodell aufwärmen
+dein-zeugs --clean-outputs          # analysis/ und reports/ leeren (inbox/ bleibt erhalten)
+dein-zeugs --clean-downloads        # heruntergeladene Modelldateien löschen
+dein-zeugs --yes                    # Bestätigungsabfragen überspringen
 ```
 
-## Configuration
+## Konfiguration
 
-A `config.toml` is created automatically in the root directory on first run:
+Eine `config.toml` wird beim ersten Start automatisch im Stammverzeichnis angelegt:
 
 ```toml
 [analysis]
-similarity_threshold = 0.80          # cosine similarity above which a question is treated as a repeat
+similarity_threshold = 0.80          # Kosinus-Ähnlichkeit, ab der eine Frage als Wiederholung gilt
 whisper_model = "medium"             # tiny / base / small / medium / large
 embedding_model = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-llm_model_path = "~/.podq/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf"
+llm_model_path = "~/.dein_zeugs/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf"
 
 [paths]
-analysis_dir = "analysis"            # optional override
-reports_dir  = "reports"             # optional override
+analysis_dir = "analysis"            # optionale Überschreibung
+reports_dir  = "reports"             # optionale Überschreibung
 
 [report]
-standouts_count = 10                 # number of top-novelty questions in the report's Highlights section
+standouts_count = 10                 # Anzahl der Fragen mit höchster Neuheit im Highlights-Abschnitt
 ```
 
-## Directory layout
+## Verzeichnisstruktur
 
 ```
-~/Podq/                     # default root (auto-created)
-  inbox/                    # drop MP3 question recordings here
-  aired/                    # move MP3s here once their question has aired
-  analysis/{stem}.yaml      # one merged YAML per question: transcript, summary, keywords, embedding, novelty scores
-  reports/report.html       # the rendered report (opens automatically after each run)
-  config.toml               # auto-created with defaults
+~/DeinZeugs/                         # Standardwurzel (wird automatisch angelegt)
+  inbox/                             # MP3-Fragenaufnahmen hier ablegen
+  aired/                             # MP3s hierher verschieben, sobald die Frage ausgestrahlt wurde
+  analysis/{stem}.yaml               # eine YAML-Datei pro Frage: Transkript, Zusammenfassung, Schlüsselwörter, Einbettung, Neuheitswerte
+  reports/report.html                # der gerenderte Bericht (öffnet sich nach jedem Start automatisch)
+  config.toml                        # wird automatisch mit Standardwerten angelegt
 ```
 
-Model files live outside the project root:
+Modelldateien liegen außerhalb des Projektstammordners:
 
 ```
-~/.cache/huggingface/hub/    # Whisper + embedding caches (~200 MB)
-~/.cache/fastembed/          # fastembed cache
-~/.podq/models/              # LLM GGUF (~2 GB)
+~/.cache/huggingface/hub/    # Whisper- und Einbettungsmodell-Cache (~200 MB)
+~/.cache/fastembed/          # fastembed-Cache
+~/.dein_zeugs/models/        # LLM GGUF (~2 GB)
 ```
 
-## What the report shows
+## Was der Bericht zeigt
 
-The report opens with a **Highlights** section: the top-N processed questions ranked by `standout_score = min(novelty_vs_aired, intra_batch_uniqueness)`. Each card has a coloured novelty bar (green ≥ 0.7, amber 0.4–0.7, red < 0.4) plus a small footer with file:// links to your `inbox/` and `aired/` folders so the "mark as aired" workflow is one drag in Finder.
+Der Bericht beginnt mit dem Abschnitt **Highlights**: die N Fragen mit dem höchsten `standout_score = min(novelty_vs_aired, intra_batch_uniqueness)`. Jede Karte enthält einen farbigen Neuheitsbalken (grün ≥ 0,7, gelb 0,4–0,7, rot < 0,4) sowie file://-Links zu `inbox/` und `aired/` für den direkten Zugriff im Finder.
 
-Below that, collapsed sections cover possible repeats, the full processed table, similarity clusters (split into "new-only" — duplicates within this batch — and "mixed" — overlaps with already-aired questions), the aired list, and any unprocessed files.
+Darunter folgen aufklappbare Abschnitte: mögliche Wiederholungen, die vollständige Fragenübersicht, Ähnlichkeitscluster (aufgeteilt in „nur neu" — Duplikate innerhalb dieser Runde — und „gemischt" — Überschneidungen mit bereits ausgestrahlten Fragen), die ausgestrahlten Fragen und noch nicht verarbeitete Dateien.
 
-## Optional: Automator folder action
+## Optional: Automator-Ordneraktion
 
-If you want podq to run automatically the moment you drop a file into `inbox/` (instead of double-clicking the Desktop launcher), set up a macOS Automator folder action. See [`installer/com.podq.folderaction.workflow.md`](installer/com.podq.folderaction.workflow.md) for the step-by-step. This is power-user setup; most users can ignore it.
+Wer dein-zeugs automatisch starten möchte, sobald eine Datei in `inbox/` abgelegt wird (anstatt den Desktop-Starter doppelzuklicken), kann eine macOS-Automator-Ordneraktion einrichten. Die Schritt-für-Schritt-Anleitung findet sich unter [`installer/com.dein_zeugs.folderaction.workflow.md`](installer/com.dein_zeugs.folderaction.workflow.md). Dies ist für erfahrene Nutzer gedacht; die meisten können diesen Abschnitt ignorieren.
 
-## Building from source (maintainers only)
+## Aus dem Quellcode bauen (nur für Maintainer)
 
-This section is for whoever cuts releases — end users do not need it.
+Dieser Abschnitt richtet sich an diejenigen, die Releases erstellen. Endnutzer benötigen ihn nicht.
 
-Python 3.12 is required; 3.14+ is not supported.
+Python 3.12 ist erforderlich; 3.14+ wird nicht unterstützt.
 
 ```bash
 uv venv --python 3.12
 source .venv/bin/activate
 uv pip install -e ".[dev]"
 uv pip install pyinstaller
-make build            # produces dist/podq (~70 MB)
-make package          # codesigns the binary
+make build            # erstellt dist/dein-zeugs (~70 MB)
+make package          # signiert das Binary
 ```
 
-To assemble the release archive, place these three files in a flat directory and tar/zip it:
+Für das Release-Archiv diese drei Dateien in einem flachen Verzeichnis zusammenstellen und als tar/zip packen:
 
 ```
-dist/podq
+dist/dein-zeugs
 installer/install.sh
-installer/Run podq.command
+installer/Run dein-zeugs.command
 ```
 
-Upload the resulting archive to a GitHub release. End users will download only that.
+Das fertige Archiv als GitHub-Release hochladen. Endnutzer laden nur dieses herunter.
 
-## Development
+## Entwicklung
 
 ```bash
 uv venv --python 3.12

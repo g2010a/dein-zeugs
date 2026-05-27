@@ -1,6 +1,5 @@
-from pathlib import Path
 from unittest.mock import MagicMock
-from podq.transcription import WhisperTranscriber
+from dein_zeugs.transcription import WhisperTranscriber
 
 
 def test_transcriber_returns_text(tmp_path):

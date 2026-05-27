@@ -1,5 +1,4 @@
-from pathlib import Path
-from podq.config import Config
+from dein_zeugs.config import Config
 
 
 def test_load_or_create_creates_defaults_when_missing(tmp_path):

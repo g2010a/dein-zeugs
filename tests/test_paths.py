@@ -1,6 +1,6 @@
 import unicodedata
 from pathlib import Path
-from podq.paths import ProjectPaths, normalize_stem, unprocessed_audio, unprocessed_aired_audio
+from dein_zeugs.paths import ProjectPaths, normalize_stem, unprocessed_audio, unprocessed_aired_audio
 
 
 def _make_paths(tmp_path: Path) -> ProjectPaths:

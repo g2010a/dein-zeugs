@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 
-log = logging.getLogger("podq")
+log = logging.getLogger("dein_zeugs")
 
 
 class WhisperTranscriber:

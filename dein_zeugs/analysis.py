@@ -3,12 +3,12 @@ import yaml
 import numpy as np
 from datetime import datetime, timezone
 from pathlib import Path
-from podq.util.atomic import atomic_write
-from podq.paths import ProjectPaths, unprocessed_audio, unprocessed_aired_audio, normalize_stem
-from podq.embedding import EmbeddingModel
-from podq import __version__
+from dein_zeugs.util.atomic import atomic_write
+from dein_zeugs.paths import ProjectPaths, unprocessed_audio, unprocessed_aired_audio, normalize_stem
+from dein_zeugs.embedding import EmbeddingModel
+from dein_zeugs import __version__
 
-log = logging.getLogger("podq")
+log = logging.getLogger("dein_zeugs")
 
 SUMMARY_PROMPT = (
     "Fasse den folgenden Text in einem einzigen kurzen Satz zusammen. "
@@ -205,7 +205,7 @@ def _analyze_one(
         "novelty_score": nov,
         "nearest_aired_stem": nearest,
         "language": "auto",
-        "podq_version": __version__,
+        "dein_zeugs_version": __version__,
         "analyzed_at": datetime.now(timezone.utc).isoformat(),
         "embedding": emb.tolist(),
     }
@@ -224,7 +224,7 @@ def process_all_unprocessed(
     config,
     embedding_model: EmbeddingModel,
 ) -> int:
-    from podq.transcription import WhisperTranscriber
+    from dein_zeugs.transcription import WhisperTranscriber
     transcriber = WhisperTranscriber(model_name=config.whisper_model)
 
     aired = embedding_model.aired_corpus(paths)

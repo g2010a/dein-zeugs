@@ -1,7 +1,5 @@
-import pytest
-from pathlib import Path
 from unittest.mock import patch
-from podq.config import Config
+from dein_zeugs.config import Config
 
 
 def _config(**kwargs) -> Config:
@@ -22,21 +20,20 @@ def test_clean_downloads_removes_llm_file(tmp_path):
     gguf = tmp_path / "model.gguf"
     gguf.write_text("fake")
     config = _config(llm_model_path=str(gguf))
-    with patch("podq.models.Path.home", return_value=tmp_path):
-        from podq.models import clean_downloads
+    with patch("dein_zeugs.models.Path.home", return_value=tmp_path):
+        from dein_zeugs.models import clean_downloads
         clean_downloads(config, yes=True)
     assert not gguf.exists()
 
 
 def test_clean_downloads_skips_missing(tmp_path):
     config = _config(llm_model_path=str(tmp_path / "nope.gguf"))
-    with patch("podq.models.Path.home", return_value=tmp_path):
-        from podq.models import clean_downloads
+    with patch("dein_zeugs.models.Path.home", return_value=tmp_path):
+        from dein_zeugs.models import clean_downloads
         clean_downloads(config, yes=True)  # no exception
 
 
 def test_clean_downloads_derives_whisper_path(tmp_path):
-    # fallback hf_cache = Path.home() / ".cache" / "huggingface" / "hub"
     hf_cache = tmp_path / ".cache" / "huggingface" / "hub"
     whisper_dir = hf_cache / "models--Systran--faster-whisper-tiny"
     whisper_dir.mkdir(parents=True)
@@ -45,8 +42,9 @@ def test_clean_downloads_derives_whisper_path(tmp_path):
         llm_model_path=str(tmp_path / "nope.gguf"),
         whisper_model="tiny",
     )
-    with patch("podq.models.Path.home", return_value=tmp_path):
-        from podq.models import clean_downloads
+    with patch("dein_zeugs.models.Path.home", return_value=tmp_path), \
+         patch("huggingface_hub.constants.HF_HUB_CACHE", str(hf_cache)):
+        from dein_zeugs.models import clean_downloads
         clean_downloads(config, yes=True)
     assert not whisper_dir.exists()
 
@@ -60,7 +58,8 @@ def test_clean_downloads_derives_embedding_path(tmp_path):
         llm_model_path=str(tmp_path / "nope.gguf"),
         embedding_model="myorg/mymodel",
     )
-    with patch("podq.models.Path.home", return_value=tmp_path):
-        from podq.models import clean_downloads
+    with patch("dein_zeugs.models.Path.home", return_value=tmp_path), \
+         patch("huggingface_hub.constants.HF_HUB_CACHE", str(hf_cache)):
+        from dein_zeugs.models import clean_downloads
         clean_downloads(config, yes=True)
     assert not embed_dir.exists()

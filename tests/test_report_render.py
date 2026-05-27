@@ -1,7 +1,6 @@
 import yaml
 import os
 import re
-import pytest
 from pathlib import Path
 from bs4 import BeautifulSoup
 
@@ -26,7 +25,7 @@ def _yaml_item(stem, novelty=1.0, similarity=0.0, nearest=None, emb=None, stando
         "nearest_aired_stem": nearest,
         "embedding": emb or ([0.1] * 384),
         "language": "de",
-        "podq_version": "1.0.0",
+        "dein_zeugs_version": "1.0.0",
         "analyzed_at": "2026-05-18T00:00:00+00:00",
     }
     if standout_score is not None:
@@ -35,9 +34,9 @@ def _yaml_item(stem, novelty=1.0, similarity=0.0, nearest=None, emb=None, stando
 
 
 def test_report_sections(tmp_path):
-    from podq.config import Config
-    from podq.paths import ProjectPaths
-    from podq.report import render_report
+    from dein_zeugs.config import Config
+    from dein_zeugs.paths import ProjectPaths
+    from dein_zeugs.report import render_report
 
     root = make_fixture_root(tmp_path)
 
@@ -48,7 +47,7 @@ def test_report_sections(tmp_path):
         "summary": "Frage über Sportfrequenz",
         "keywords": ["sport"], "similarity_score": 0.0, "novelty_score": 1.0,
         "nearest_aired_stem": None, "embedding": [0.1] * 384,
-        "language": "de", "podq_version": "1.0.0",
+        "language": "de", "dein_zeugs_version": "1.0.0",
         "analyzed_at": "2026-05-18T00:00:00+00:00"
     }, allow_unicode=True, default_flow_style=False, sort_keys=False))
 
@@ -59,7 +58,7 @@ def test_report_sections(tmp_path):
         "summary": "Frage über Erkältungsmittel",
         "keywords": ["erkältung"], "similarity_score": 0.3, "novelty_score": 0.7,
         "nearest_aired_stem": "aired_q1", "embedding": [0.2] * 384,
-        "language": "de", "podq_version": "1.0.0",
+        "language": "de", "dein_zeugs_version": "1.0.0",
         "analyzed_at": "2026-05-18T00:00:00+00:00"
     }, allow_unicode=True, default_flow_style=False, sort_keys=False))
 
@@ -88,9 +87,9 @@ def test_report_sections(tmp_path):
 
 
 def test_repeat_row_highlighted(tmp_path):
-    from podq.config import Config
-    from podq.paths import ProjectPaths
-    from podq.report import render_report
+    from dein_zeugs.config import Config
+    from dein_zeugs.paths import ProjectPaths
+    from dein_zeugs.report import render_report
 
     root = make_fixture_root(tmp_path)
 
@@ -101,7 +100,7 @@ def test_repeat_row_highlighted(tmp_path):
         "summary": "Wiederholte Frage",
         "keywords": ["wiederholung"], "similarity_score": 0.9, "novelty_score": 0.1,
         "nearest_aired_stem": "some_aired", "embedding": [0.9] * 384,
-        "language": "de", "podq_version": "1.0.0",
+        "language": "de", "dein_zeugs_version": "1.0.0",
         "analyzed_at": "2026-05-18T00:00:00+00:00"
     }, allow_unicode=True, default_flow_style=False, sort_keys=False))
 
@@ -116,9 +115,9 @@ def test_repeat_row_highlighted(tmp_path):
 
 
 def test_no_external_urls(tmp_path):
-    from podq.config import Config
-    from podq.paths import ProjectPaths
-    from podq.report import render_report
+    from dein_zeugs.config import Config
+    from dein_zeugs.paths import ProjectPaths
+    from dein_zeugs.report import render_report
 
     root = make_fixture_root(tmp_path)
     config = Config()
@@ -131,9 +130,9 @@ def test_no_external_urls(tmp_path):
 
 
 def test_clusters_section_present(tmp_path):
-    from podq.config import Config
-    from podq.paths import ProjectPaths
-    from podq.report import render_report
+    from dein_zeugs.config import Config
+    from dein_zeugs.paths import ProjectPaths
+    from dein_zeugs.report import render_report
 
     root = make_fixture_root(tmp_path)
 
@@ -146,7 +145,7 @@ def test_clusters_section_present(tmp_path):
             "summary": "Same thing",
             "keywords": ["same"], "similarity_score": 0.0, "novelty_score": 1.0,
             "nearest_aired_stem": None, "embedding": emb,
-            "language": "de", "podq_version": "1.0.0",
+            "language": "de", "dein_zeugs_version": "1.0.0",
             "analyzed_at": "2026-05-18T00:00:00+00:00"
         }, allow_unicode=True, default_flow_style=False, sort_keys=False))
 
@@ -161,9 +160,9 @@ def test_clusters_section_present(tmp_path):
 
 
 def test_processed_sorted_by_novelty_desc(tmp_path):
-    from podq.config import Config
-    from podq.paths import ProjectPaths
-    from podq.report import render_report
+    from dein_zeugs.config import Config
+    from dein_zeugs.paths import ProjectPaths
+    from dein_zeugs.report import render_report
 
     root = make_fixture_root(tmp_path)
 
@@ -179,7 +178,7 @@ def test_processed_sorted_by_novelty_desc(tmp_path):
             "summary": "A question",
             "keywords": [], "similarity_score": 1.0 - novelty, "novelty_score": novelty,
             "nearest_aired_stem": None, "embedding": [0.1] * 384,
-            "language": "de", "podq_version": "1.0.0",
+            "language": "de", "dein_zeugs_version": "1.0.0",
             "analyzed_at": "2026-05-18T00:00:00+00:00"
         }, allow_unicode=True, default_flow_style=False, sort_keys=False))
 
@@ -198,9 +197,9 @@ def test_processed_sorted_by_novelty_desc(tmp_path):
 
 def test_standouts_section_is_first(tmp_path):
     """Standouts section appears before processed/aired/clusters in the HTML."""
-    from podq.config import Config
-    from podq.paths import ProjectPaths
-    from podq.report import render_report
+    from dein_zeugs.config import Config
+    from dein_zeugs.paths import ProjectPaths
+    from dein_zeugs.report import render_report
 
     root = make_fixture_root(tmp_path)
     (root / "inbox" / "q1.mp3").touch()
@@ -221,9 +220,9 @@ def test_standouts_section_is_first(tmp_path):
 
 def test_standouts_sorted_by_standout_score(tmp_path):
     """Standouts are ordered by standout_score desc when it is present."""
-    from podq.config import Config
-    from podq.paths import ProjectPaths
-    from podq.report import render_report
+    from dein_zeugs.config import Config
+    from dein_zeugs.paths import ProjectPaths
+    from dein_zeugs.report import render_report
 
     root = make_fixture_root(tmp_path)
 
@@ -253,9 +252,9 @@ def test_standouts_sorted_by_standout_score(tmp_path):
 
 def test_standouts_fallback_to_novelty_score(tmp_path):
     """When standout_score is absent, novelty_score is used for ranking."""
-    from podq.config import Config
-    from podq.paths import ProjectPaths
-    from podq.report import render_report
+    from dein_zeugs.config import Config
+    from dein_zeugs.paths import ProjectPaths
+    from dein_zeugs.report import render_report
 
     root = make_fixture_root(tmp_path)
 
@@ -285,9 +284,9 @@ def test_standouts_fallback_to_novelty_score(tmp_path):
 
 def test_banner_shows_correct_counts(tmp_path):
     """Banner displays correct aired and total counts."""
-    from podq.config import Config
-    from podq.paths import ProjectPaths
-    from podq.report import render_report
+    from dein_zeugs.config import Config
+    from dein_zeugs.paths import ProjectPaths
+    from dein_zeugs.report import render_report
 
     root = make_fixture_root(tmp_path)
 
@@ -316,9 +315,9 @@ def test_banner_shows_correct_counts(tmp_path):
 
 def test_aired_folder_links_present(tmp_path):
     """Each standout card contains file:// links for inbox and aired folders."""
-    from podq.config import Config
-    from podq.paths import ProjectPaths
-    from podq.report import render_report
+    from dein_zeugs.config import Config
+    from dein_zeugs.paths import ProjectPaths
+    from dein_zeugs.report import render_report
 
     root = make_fixture_root(tmp_path)
     (root / "inbox" / "q1.mp3").touch()
@@ -335,9 +334,9 @@ def test_aired_folder_links_present(tmp_path):
 
 def test_new_only_clusters(tmp_path):
     """Clusters with all-unaired members appear under 'Neue Cluster'."""
-    from podq.config import Config
-    from podq.paths import ProjectPaths
-    from podq.report import render_report
+    from dein_zeugs.config import Config
+    from dein_zeugs.paths import ProjectPaths
+    from dein_zeugs.report import render_report
 
     root = make_fixture_root(tmp_path)
 
@@ -362,9 +361,9 @@ def test_new_only_clusters(tmp_path):
 
 def test_mixed_clusters(tmp_path):
     """Clusters spanning aired + unaired appear under 'Gemischte Cluster'."""
-    from podq.config import Config
-    from podq.paths import ProjectPaths
-    from podq.report import render_report
+    from dein_zeugs.config import Config
+    from dein_zeugs.paths import ProjectPaths
+    from dein_zeugs.report import render_report
 
     root = make_fixture_root(tmp_path)
 

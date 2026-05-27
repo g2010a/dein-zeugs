@@ -2,10 +2,9 @@ import json
 import logging
 import yaml
 import numpy as np
-from pathlib import Path
-from podq.paths import ProjectPaths, normalize_stem
+from dein_zeugs.paths import ProjectPaths, normalize_stem
 
-log = logging.getLogger("podq")
+log = logging.getLogger("dein_zeugs")
 
 
 class EmbeddingModel:

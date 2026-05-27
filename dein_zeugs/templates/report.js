@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // ── 3. Seen / unseen tracking ────────────────────────────────────
-  var SEEN_KEY = 'podq_seen';
+  var SEEN_KEY = 'dein_zeugs_seen';
 
   function loadSeen() {
     try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); }

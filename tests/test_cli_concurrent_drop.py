@@ -1,9 +1,8 @@
 import os
 import fcntl
 import threading
-import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 
 os.environ["PODQ_NO_OPEN"] = "1"
 
@@ -68,7 +67,7 @@ def test_concurrent_lock_contention(tmp_path):
     results = []
     results_lock = threading.Lock()
 
-    from podq.cli import main
+    from dein_zeugs.cli import main
 
     def run_winner():
         result = main([str(root)])
@@ -83,10 +82,10 @@ def test_concurrent_lock_contention(tmp_path):
             results.append(("loser", result))
 
     with patch("fcntl.flock", side_effect=fake_flock), \
-         patch("podq.cli.ensure_llm_model"), \
-         patch("podq.cli.process_all_unprocessed", side_effect=mock_process), \
-         patch("podq.cli.render_report", side_effect=mock_render), \
-         patch("podq.cli.EmbeddingModel", return_value=mock_embedding):
+         patch("dein_zeugs.cli.ensure_llm_model"), \
+         patch("dein_zeugs.cli.process_all_unprocessed", side_effect=mock_process), \
+         patch("dein_zeugs.cli.render_report", side_effect=mock_render), \
+         patch("dein_zeugs.cli.EmbeddingModel", return_value=mock_embedding):
 
         t1 = threading.Thread(target=run_winner, name="winner")
         t2 = threading.Thread(target=run_loser, name="loser")
@@ -150,12 +149,12 @@ def test_concurrent_all_files_processed(tmp_path):
     mock_embedding = MagicMock()
 
     with patch("fcntl.flock", side_effect=fake_flock), \
-         patch("podq.cli.ensure_llm_model"), \
-         patch("podq.cli.process_all_unprocessed", side_effect=mock_process), \
-         patch("podq.cli.render_report", side_effect=mock_render), \
-         patch("podq.cli.EmbeddingModel", return_value=mock_embedding):
+         patch("dein_zeugs.cli.ensure_llm_model"), \
+         patch("dein_zeugs.cli.process_all_unprocessed", side_effect=mock_process), \
+         patch("dein_zeugs.cli.render_report", side_effect=mock_render), \
+         patch("dein_zeugs.cli.EmbeddingModel", return_value=mock_embedding):
 
-        from podq.cli import main
+        from dein_zeugs.cli import main
         result = main([str(root)])
 
     assert result == 0

@@ -3,11 +3,11 @@ import yaml
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
-from podq.paths import ProjectPaths, normalize_stem
-from podq.clustering import build_clusters
-from podq.util.atomic import atomic_write
+from dein_zeugs.paths import ProjectPaths, normalize_stem
+from dein_zeugs.clustering import build_clusters
+from dein_zeugs.util.atomic import atomic_write
 
-log = logging.getLogger("podq")
+log = logging.getLogger("dein_zeugs")
 
 _DEFAULT_STANDOUTS_COUNT = 10
 
