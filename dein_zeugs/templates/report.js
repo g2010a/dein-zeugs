@@ -24,80 +24,12 @@ document.addEventListener('DOMContentLoaded', function () {
   // ── 2. Auto-open section on nav click ────────────────────────────
   document.querySelectorAll('.sticky-nav a[href^="#"]').forEach(function (link) {
     link.addEventListener('click', function () {
-      var el = document.getElementById(link.getAttribute('href').slice(1));
-      if (el && el.tagName === 'DETAILS') el.open = true;
+      var target = document.querySelector(link.getAttribute('href'));
+      if (target && target.tagName === 'DETAILS') target.open = true;
     });
   });
 
-  // ── 3. Seen / unseen tracking ────────────────────────────────────
-  var SEEN_KEY = 'dein_zeugs_seen';
-
-  function loadSeen() {
-    try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); }
-    catch (e) { return new Set(); }
-  }
-
-  function saveSeen(set) {
-    try { localStorage.setItem(SEEN_KEY, JSON.stringify(Array.from(set))); } catch (e) {}
-  }
-
-  var seenSet = loadSeen();
-  document.body.classList.add('seen-tracking');
-
-  function markSeen(stem) {
-    if (!stem || seenSet.has(stem)) return;
-    seenSet.add(stem);
-    saveSeen(seenSet);
-    document.querySelectorAll('[data-stem]').forEach(function (el) {
-      if (el.getAttribute('data-stem') === stem) el.setAttribute('data-seen', '1');
-    });
-    updateUnseenBadge();
-    if (activeFilter === 'unseen') applyFilters();
-  }
-
-  // mark seen on audio click
-  document.addEventListener('click', function (e) {
-    var audio = e.target.closest('.audio-link');
-    if (audio) {
-      var item = audio.closest('[data-stem]');
-      if (item) markSeen(item.getAttribute('data-stem'));
-    }
-  });
-
-  // mark seen on transcript open
-  document.addEventListener('toggle', function (e) {
-    if (e.target.classList && e.target.classList.contains('transcript-details') && e.target.open) {
-      var item = e.target.closest('[data-stem]');
-      if (item) markSeen(item.getAttribute('data-stem'));
-    }
-  }, true);
-
-  // apply initial seen state from localStorage
-  document.querySelectorAll('[data-stem]').forEach(function (el) {
-    if (seenSet.has(el.getAttribute('data-stem'))) el.setAttribute('data-seen', '1');
-  });
-
-  function updateUnseenBadge() {
-    var total = document.querySelectorAll('[data-section]:not([data-seen])').length;
-    var badge = document.getElementById('nav-unseen');
-    var countEl = document.getElementById('nav-unseen-count');
-    if (badge) badge.hidden = total === 0;
-    if (countEl) countEl.textContent = total;
-  }
-  updateUnseenBadge();
-
-  var resetBtn = document.getElementById('btn-reset-seen');
-  if (resetBtn) {
-    resetBtn.addEventListener('click', function () {
-      seenSet.clear();
-      saveSeen(seenSet);
-      document.querySelectorAll('[data-seen]').forEach(function (el) { el.removeAttribute('data-seen'); });
-      updateUnseenBadge();
-      if (activeFilter === 'unseen') applyFilters();
-    });
-  }
-
-  // ── 4. Search + filter chips ─────────────────────────────────────
+  // ── 3. Search + filter chips ─────────────────────────────────────
   var searchInput = document.getElementById('q');
   var activeFilter = null;
   var activeKeyword = null;
@@ -113,10 +45,8 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!text.includes(q)) return false;
     }
     if (activeFilter) {
-      if (activeFilter === 'unseen'    && el.getAttribute('data-seen'))                        return false;
-      if (activeFilter === 'highlight' && el.getAttribute('data-section') !== 'highlight')     return false;
-      if (activeFilter === 'repeat'    && el.getAttribute('data-section') !== 'repeat')        return false;
-      if (activeFilter === 'error'     && !el.getAttribute('data-error'))                      return false;
+      if (activeFilter === 'new'    && el.getAttribute('data-section') !== 'processed') return false;
+      if (activeFilter === 'aired'  && el.getAttribute('data-section') !== 'aired')     return false;
     }
     if (activeKeyword) {
       var kws = (el.getAttribute('data-keywords') || '').split(',').map(function (k) { return k.trim(); });
@@ -127,23 +57,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function applyFilters() {
     document.querySelectorAll('[data-stem][data-section]').forEach(function (el) {
+      if (el.classList.contains('cluster-header-row')) return;
       el.classList.toggle('item-hidden', !itemVisible(el));
     });
-    updateProcessedCount();
-    updateUnseenBadge();
+    updateAllQuestionsCount();
     currentPage = 1;
     applyPagination();
   }
 
-  function updateProcessedCount() {
-    var tbody = document.getElementById('processed-tbody');
+  function updateAllQuestionsCount() {
+    var tbody = document.getElementById('all-questions-tbody');
     if (!tbody) return;
-    var allRows = tbody.rows.length;
-    var visibleRows = Array.from(tbody.rows).filter(function (r) { return !r.classList.contains('item-hidden'); }).length;
-    var el = document.getElementById('processed-count');
-    if (el) el.textContent = visibleRows < allRows ? '(' + visibleRows + ' von ' + allRows + ')' : '(' + allRows + ')';
-    var navEl = document.getElementById('nav-processed-count');
-    if (navEl) navEl.textContent = visibleRows;
+    var rows = Array.from(tbody.rows).filter(function (r) {
+      return !r.classList.contains('cluster-header-row');
+    });
+    var total = rows.length;
+    var visible = rows.filter(function (r) { return !r.classList.contains('item-hidden'); }).length;
+    var el = document.getElementById('all-questions-count');
+    if (el) el.textContent = visible < total ? '(' + visible + ' von ' + total + ')' : '(' + total + ')';
+    var navEl = document.getElementById('nav-all-count');
+    if (navEl) navEl.textContent = visible;
   }
 
   if (searchInput) {
@@ -178,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // ── 5. Keyword cloud ─────────────────────────────────────────────
+  // ── 4. Keyword cloud ─────────────────────────────────────────────
   var cloudEl = document.getElementById('keyword-cloud');
   var toggleCloudBtn = document.getElementById('toggle-keyword-cloud');
 
@@ -223,7 +156,7 @@ document.addEventListener('DOMContentLoaded', function () {
     applyFilters();
   }
 
-  // keyword chip click inside cards/table activates cloud filter
+  // keyword chip click inside table activates cloud filter
   document.addEventListener('click', function (e) {
     var chip = e.target.closest('.chip-kw');
     if (!chip) return;
@@ -235,7 +168,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (b.getAttribute('data-kw') === kw) cloudBtn = b;
       });
     }
-    // open cloud so the active state is visible
     if (cloudEl && cloudEl.style.display === 'none' && cloudBtn) {
       cloudEl.style.display = '';
       if (toggleCloudBtn) toggleCloudBtn.textContent = 'Schlagwörter ▴';
@@ -243,19 +175,27 @@ document.addEventListener('DOMContentLoaded', function () {
     toggleKeyword(kw, cloudBtn);
   });
 
-  // ── 6. Sortable table ────────────────────────────────────────────
+  // ── 5. Sortable table ────────────────────────────────────────────
   var sortCol = 'novelty';
   var sortDir = 'desc';
 
   function sortTable() {
-    var tbody = document.getElementById('processed-tbody');
+    if (groupByCluster) return; // sort disabled while grouped
+    var tbody = document.getElementById('all-questions-tbody');
     if (!tbody) return;
-    var rows = Array.from(tbody.rows);
+    var rows = Array.from(tbody.rows).filter(function (r) {
+      return !r.classList.contains('cluster-header-row');
+    });
     rows.sort(function (a, b) {
       if (sortCol === 'stem') {
         var av = (a.getAttribute('data-stem') || '').toLowerCase();
         var bv = (b.getAttribute('data-stem') || '').toLowerCase();
         return sortDir === 'asc' ? av.localeCompare(bv, 'de') : bv.localeCompare(av, 'de');
+      }
+      if (sortCol === 'first-seen' || sortCol === 'analyzed-at') {
+        var av = a.getAttribute('data-' + sortCol) || '';
+        var bv = b.getAttribute('data-' + sortCol) || '';
+        return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
       }
       var av = parseFloat(a.getAttribute('data-' + sortCol) || 0);
       var bv = parseFloat(b.getAttribute('data-' + sortCol) || 0);
@@ -263,7 +203,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     rows.forEach(function (r) { tbody.appendChild(r); });
 
-    document.querySelectorAll('#processed-table th[data-sort]').forEach(function (th) {
+    document.querySelectorAll('#all-questions-table th[data-sort]').forEach(function (th) {
       var icon = th.querySelector('.sort-icon');
       th.classList.remove('sort-active', 'sort-asc', 'sort-desc');
       if (th.getAttribute('data-sort') === sortCol) {
@@ -276,15 +216,88 @@ document.addEventListener('DOMContentLoaded', function () {
     applyPagination();
   }
 
-  document.querySelectorAll('#processed-table th[data-sort]').forEach(function (th) {
+  document.querySelectorAll('#all-questions-table th[data-sort]').forEach(function (th) {
     th.addEventListener('click', function () {
+      if (groupByCluster) return;
       var col = th.getAttribute('data-sort');
-      sortDir = (sortCol === col) ? (sortDir === 'asc' ? 'desc' : 'asc') : (col === 'stem' ? 'asc' : 'desc');
-      sortCol = col;
+      if (sortCol === col) {
+        sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortCol = col;
+        sortDir = (col === 'stem' || col === 'first-seen' || col === 'analyzed-at') ? 'asc' : 'desc';
+      }
       sortTable();
     });
   });
   sortTable();
+
+  // ── 6. Group by cluster ──────────────────────────────────────────
+  var groupByCluster = false;
+  // CLUSTER_NAMES is injected by the template as a global var
+
+  function removeClusterHeaders() {
+    var tbody = document.getElementById('all-questions-tbody');
+    if (!tbody) return;
+    Array.from(tbody.querySelectorAll('.cluster-header-row')).forEach(function (r) { r.remove(); });
+  }
+
+  function applyGroupByCluster() {
+    removeClusterHeaders();
+    var tbody = document.getElementById('all-questions-tbody');
+    if (!tbody) return;
+
+    var rows = Array.from(tbody.rows).filter(function (r) {
+      return !r.classList.contains('cluster-header-row');
+    });
+
+    var clusterGroups = {};
+    var noCluster = [];
+    rows.forEach(function (row) {
+      var cid = row.getAttribute('data-cluster');
+      if (cid) {
+        if (!clusterGroups[cid]) clusterGroups[cid] = [];
+        clusterGroups[cid].push(row);
+      } else {
+        noCluster.push(row);
+      }
+    });
+
+    var clusterNames = (typeof CLUSTER_NAMES !== 'undefined') ? CLUSTER_NAMES : {};
+
+    Object.keys(clusterGroups).forEach(function (cid) {
+      var name = clusterNames[cid] || cid;
+      var count = clusterGroups[cid].length;
+      var headerRow = document.createElement('tr');
+      headerRow.className = 'cluster-header-row';
+      headerRow.innerHTML = '<td colspan="9" class="cluster-header-cell">&#x1F4CC; ' +
+        name + ' <span class="chip">' + count + ' Fragen</span></td>';
+      tbody.appendChild(headerRow);
+      clusterGroups[cid].forEach(function (r) { tbody.appendChild(r); });
+    });
+
+    if (noCluster.length > 0) {
+      var singletonRow = document.createElement('tr');
+      singletonRow.className = 'cluster-header-row';
+      singletonRow.innerHTML = '<td colspan="9" class="cluster-header-cell">Einzelne Fragen <span class="chip">' + noCluster.length + '</span></td>';
+      tbody.appendChild(singletonRow);
+      noCluster.forEach(function (r) { tbody.appendChild(r); });
+    }
+  }
+
+  var groupBtn = document.getElementById('btn-group-by-cluster');
+  if (groupBtn) {
+    groupBtn.addEventListener('click', function () {
+      groupByCluster = !groupByCluster;
+      groupBtn.classList.toggle('filter-btn-active', groupByCluster);
+      if (groupByCluster) {
+        applyGroupByCluster();
+      } else {
+        removeClusterHeaders();
+        sortTable();
+      }
+      applyPagination();
+    });
+  }
 
   // ── 7. Pagination ────────────────────────────────────────────────
   var currentPage = 1;
@@ -300,11 +313,13 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function applyPagination() {
-    var tbody = document.getElementById('processed-tbody');
+    var tbody = document.getElementById('all-questions-tbody');
     var controls = document.getElementById('pagination-controls');
     if (!tbody || !controls) return;
 
-    var visibleRows = Array.from(tbody.rows).filter(function (r) { return !r.classList.contains('item-hidden'); });
+    var visibleRows = Array.from(tbody.rows).filter(function (r) {
+      return !r.classList.contains('item-hidden') && !r.classList.contains('cluster-header-row');
+    });
     var total = visibleRows.length;
 
     if (pageSize === 0) {
@@ -347,6 +362,6 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // initial render
-  updateProcessedCount();
+  updateAllQuestionsCount();
   applyPagination();
 });

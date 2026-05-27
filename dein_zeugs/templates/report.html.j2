@@ -12,31 +12,26 @@
 </head>
 <body>
   <nav class="sticky-nav">
-    <a href="#standouts">Highlights ({{ standouts|length }})</a>
-    <a href="#repeats">Wiederholungen ({{ possible_repeats|length }})</a>
-    <a href="#processed">Alle Fragen (<span id="nav-processed-count">{{ processed|length }}</span>)</a>
-    <a href="#clusters">Cluster ({{ clusters|length }})</a>
-    <a href="#aired">Ausgestrahlt ({{ aired|length }})</a>
-    <span class="nav-unseen" id="nav-unseen" hidden>&#x25CF; <span id="nav-unseen-count">0</span> ungesehen</span>
+    <a href="#all-questions">Alle Fragen (<span id="nav-all-count">{{ (processed|length) + (aired|length) }}</span>)</a>
+    <a href="#clusters">Cluster ({{ named_clusters|length }})</a>
   </nav>
 
   <div class="filter-bar">
-    <input type="search" id="q" placeholder="&#x1F50D; Suchen nach Stem, Zusammenfassung, Schlagwort&#x2026; (Taste /)" autocomplete="off">
+    <input type="search" id="q" placeholder="&#x1F50D; Suchen&#x2026; (Taste /)" autocomplete="off">
     <div class="filter-chips">
-      <button class="filter-btn" data-filter="unseen">Ungesehen</button>
-      <button class="filter-btn" data-filter="highlight">Highlights</button>
-      <button class="filter-btn" data-filter="repeat">Wiederholungen</button>
-      <button class="filter-btn" data-filter="error">KI-Fehler</button>
+      <button class="filter-btn" data-filter="new">Neu</button>
+      <button class="filter-btn" data-filter="aired">Ausgestrahlt</button>
       <button class="filter-btn" id="toggle-keyword-cloud" style="display:none">Schlagw&#246;rter &#x25BE;</button>
-      <button class="filter-btn" id="btn-reset-seen">Gesehen zur&#252;cksetzen</button>
+      <button class="filter-btn" id="btn-group-by-cluster">Nach Cluster gruppieren</button>
     </div>
   </div>
   <div id="keyword-cloud" class="keyword-cloud" style="display:none"></div>
 
   <main>
-    {# ── Banner ── #}
     <div class="banner">
       {{ aired_count }} von {{ total_questions_count }} Fragen wurden bereits ausgestrahlt.
+      <a class="banner-link" href="file://{{ inbox_path }}/">Inbox &#246;ffnen</a>
+      <a class="banner-link" href="file://{{ aired_path }}/">Aired &#246;ffnen</a>
     </div>
     {% if llm_error_count %}
     <div class="banner banner-error">
@@ -44,123 +39,89 @@
     </div>
     {% endif %}
 
-    {# ── Transcript global toolbar ── #}
     <div class="transcript-toolbar">
       <span>Transkripte:</span>
       <button id="toggle-all-transcripts" type="button">Alle aufklappen</button>
     </div>
 
-    {# ── 1. Standouts ── #}
-    <details open id="standouts">
-      <summary><h2>Highlights</h2></summary>
-      {% if standouts %}
-      <div class="card-list">
-        {% for item in standouts %}
-        <div class="card{% if loop.index <= 3 %} card-rank-{{ loop.index }}{% endif %}" data-stem="{{ item.stem }}" data-summary="{{ item.summary }}" data-keywords="{{ item.keywords | join(',') | lower }}" data-novelty="{{ item.standout_score }}" data-section="highlight"{% if item.llm_error %} data-error="1"{% endif %}>
-          <div class="card-top-row">
-            {% if loop.index <= 3 %}<span class="chip chip-rank chip-rank-{{ loop.index }}">&#x2605; #{{ loop.index }}</span>{% endif %}
-            <div class="card-stem">{{ item.stem }}</div>
-            {% if item.llm_error %}<span class="chip chip-error">&#x26A0; KI-Fehler</span>{% endif %}
-          </div>
-          <div class="card-summary">{{ item.summary }}</div>
-          {% if item.keywords %}
-          <div class="card-keywords">
-            {% for kw in item.keywords %}
-            <span class="chip chip-kw" data-kw="{{ kw | lower }}">{{ kw }}</span>
-            {% endfor %}
-          </div>
-          {% endif %}
-          <div class="card-novelty-row">
-            <div class="bar">
-              <div class="bar-fill {% if item.standout_score >= 0.7 %}bar-green{% elif item.standout_score >= 0.4 %}bar-amber{% else %}bar-red{% endif %}"
-                   style="width: {{ (item.standout_score * 100)|round|int }}%"></div>
-            </div>
-            <span class="card-meta">Neuheitswert: <strong>{{ "%.2f"|format(item.standout_score) }}</strong></span>
-          </div>
-          {% if item.nearest_aired_stem %}
-          <div class="card-meta">
-            Ähnelt ausgestrahlter Frage: <span class="chip">{{ item.nearest_aired_stem }}</span>
-          </div>
-          {% endif %}
-          {{ transcript_block(item.transcript) }}
-          <div class="aired-hint">
-            <a class="audio-link" href="file://{{ inbox_path }}/{{ item.stem }}.mp3" target="_blank">&#x25B6; Audio</a>
-            Wurde diese Frage ausgestrahlt? In den <code>aired/</code>-Ordner verschieben.
-            <a href="file://{{ inbox_path }}/">Inbox öffnen</a>
-            <a href="file://{{ aired_path }}/">Aired öffnen</a>
-          </div>
-        </div>
-        {% endfor %}
+    {# ── Unified question list ── #}
+    <section id="all-questions">
+      <div class="section-header">
+        <h2>Alle Fragen <span class="live-count" id="all-questions-count"></span></h2>
       </div>
-      {% else %}
-      <p class="empty">Keine verarbeiteten Fragen vorhanden.</p>
-      {% endif %}
-    </details>
-
-    {# ── 2. Mögliche Wiederholungen ── #}
-    <details id="repeats">
-      <summary><h2>Mögliche Wiederholungen</h2></summary>
-      {% if possible_repeats %}
-      <div class="card-list">
-        {% for item in possible_repeats %}
-        <div class="card card-repeat" data-stem="{{ item.stem }}" data-summary="{{ item.summary }}" data-keywords="{{ item.keywords | join(',') | lower }}" data-novelty="{{ item.novelty_score }}" data-similarity="{{ item.similarity_score }}" data-section="repeat"{% if item.llm_error %} data-error="1"{% endif %}>
-          <div class="card-stem">{{ item.stem }}</div>
-          {% if item.nearest_aired_stem %}
-          <span class="chip chip-repeat">&#x1F501; ähnelt {{ item.nearest_aired_stem }}</span>
-          {% endif %}
-          <div class="card-summary">{{ item.summary }}</div>
-          {% if item.keywords %}
-          <div class="card-keywords">
-            {% for kw in item.keywords %}
-            <span class="chip chip-kw" data-kw="{{ kw | lower }}">{{ kw }}</span>
-            {% endfor %}
-          </div>
-          {% endif %}
-          <div class="card-novelty-row">
-            <div class="bar">
-              <div class="bar-fill bar-red"
-                   style="width: {{ (item.novelty_score * 100)|round|int }}%"></div>
-            </div>
-            <span class="card-meta">Ähnlichkeit: {{ "%.2f"|format(item.similarity_score) }} · Neuheitswert: {{ "%.2f"|format(item.novelty_score) }}</span>
-          </div>
-          {{ transcript_block(item.transcript) }}
-          <div class="aired-hint">
-            <a class="audio-link" href="file://{{ inbox_path }}/{{ item.stem }}.mp3" target="_blank">&#x25B6; Audio</a>
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      <p class="empty">Keine möglichen Wiederholungen gefunden (Schwellenwert: {{ "%.2f"|format(threshold) }}).</p>
-      {% endif %}
-    </details>
-
-    {# ── 3. Alle verarbeiteten Fragen (Tabelle) ── #}
-    <details id="processed">
-      <summary><h2>Alle verarbeiteten Fragen <span class="live-count" id="processed-count"></span></h2></summary>
-      {% if processed %}
-      <table id="processed-table">
+      {% if processed or aired %}
+      <table id="all-questions-table">
         <thead>
           <tr>
             <th data-sort="stem">Stem <span class="sort-icon"></span></th>
             <th>Zusammenfassung</th>
             <th>Transkript</th>
-            <th>Schlagwörter</th>
-            <th data-sort="similarity">Ähnlichkeit <span class="sort-icon"></span></th>
+            <th>Schlagw&#246;rter</th>
+            <th data-sort="similarity">&#196;hnlichkeit <span class="sort-icon"></span></th>
             <th data-sort="novelty" class="sort-active sort-desc">Neuheitswert <span class="sort-icon">&#x25BC;</span></th>
+            <th data-sort="first-seen">Erstmals gesehen <span class="sort-icon"></span></th>
+            <th data-sort="analyzed-at">Zuletzt verarbeitet <span class="sort-icon"></span></th>
             <th>Audio</th>
           </tr>
         </thead>
-        <tbody id="processed-tbody">
+        <tbody id="all-questions-tbody">
           {% for item in processed %}
-          <tr{% if item.similarity_score >= threshold %} class="repeat"{% endif %} data-stem="{{ item.stem }}" data-summary="{{ item.summary }}" data-keywords="{{ item.keywords | join(',') | lower }}" data-similarity="{{ item.similarity_score }}" data-novelty="{{ item.novelty_score }}" data-section="processed"{% if item.llm_error %} data-error="1"{% endif %}>
-            <td class="stem">{{ item.stem }}{% if item.llm_error %} <span class="chip chip-error">&#x26A0;</span>{% endif %}</td>
+          <tr{% if item.similarity_score >= threshold %} class="repeat"{% endif %}
+              data-stem="{{ item.stem }}"
+              data-summary="{{ item.summary }}"
+              data-keywords="{{ item.keywords | join(',') | lower }}"
+              data-similarity="{{ item.similarity_score }}"
+              data-novelty="{{ item.novelty_score }}"
+              data-first-seen="{{ item.first_seen }}"
+              data-analyzed-at="{{ item.analyzed_at }}"
+              data-section="processed"
+              {% if item.cluster_id %}data-cluster="{{ item.cluster_id }}"{% endif %}
+              {% if item.llm_error %}data-error="1"{% endif %}>
+            <td class="stem">{{ item.stem }}</td>
             <td>{{ item.summary }}</td>
             <td>{{ transcript_block(item.transcript) }}</td>
             <td>{% for kw in item.keywords %}<span class="chip chip-kw" data-kw="{{ kw | lower }}">{{ kw }}</span> {% endfor %}</td>
             <td>{{ "%.2f"|format(item.similarity_score) }}</td>
-            <td>{{ "%.2f"|format(item.novelty_score) }}</td>
+            <td>
+              <div class="novelty-cell">
+                <div class="bar-mini"><div class="bar-fill {% if item.novelty_score >= 0.7 %}bar-green{% elif item.novelty_score >= 0.4 %}bar-amber{% else %}bar-red{% endif %}" style="width:{{ (item.novelty_score * 100)|round|int }}%"></div></div>
+                {{ "%.2f"|format(item.novelty_score) }}
+              </div>
+            </td>
+            <td class="date-cell">{{ item.first_seen[:10] if item.first_seen else "&#x2014;" }}</td>
+            <td class="date-cell">{{ item.analyzed_at[:10] if item.analyzed_at else "&#x2014;" }}</td>
             <td><a class="audio-link" href="file://{{ inbox_path }}/{{ item.stem }}.mp3" target="_blank">&#x25B6;</a></td>
+          </tr>
+          {% endfor %}
+          {% for item in aired %}
+          <tr class="row-aired{% if item.similarity_score >= threshold %} repeat{% endif %}"
+              data-stem="{{ item.stem }}"
+              data-summary="{{ item.summary }}"
+              data-keywords="{{ item.keywords | join(',') | lower }}"
+              data-similarity="{{ item.similarity_score }}"
+              data-novelty="{{ item.novelty_score }}"
+              data-first-seen="{{ item.first_seen }}"
+              data-analyzed-at="{{ item.analyzed_at }}"
+              data-section="aired"
+              {% if item.cluster_id %}data-cluster="{{ item.cluster_id }}"{% endif %}
+              {% if item.llm_error %}data-error="1"{% endif %}>
+            <td class="stem">
+              <span class="chip chip-aired" title="Ausgestrahlt">&#x1F4E1;</span>
+              {{ item.stem }}
+            </td>
+            <td>{{ item.summary }}</td>
+            <td>{{ transcript_block(item.transcript) }}</td>
+            <td>{% for kw in item.keywords %}<span class="chip chip-kw" data-kw="{{ kw | lower }}">{{ kw }}</span> {% endfor %}</td>
+            <td>{{ "%.2f"|format(item.similarity_score) }}</td>
+            <td>
+              <div class="novelty-cell">
+                <div class="bar-mini"><div class="bar-fill bar-gray" style="width:{{ (item.novelty_score * 100)|round|int }}%"></div></div>
+                {{ "%.2f"|format(item.novelty_score) }}
+              </div>
+            </td>
+            <td class="date-cell">{{ item.first_seen[:10] if item.first_seen else "&#x2014;" }}</td>
+            <td class="date-cell">{{ item.analyzed_at[:10] if item.analyzed_at else "&#x2014;" }}</td>
+            <td><a class="audio-link" href="file://{{ aired_path }}/{{ item.stem }}.mp3" target="_blank">&#x25B6;</a></td>
           </tr>
           {% endfor %}
         </tbody>
@@ -177,101 +138,72 @@
           </select>
         </div>
       </div>
-      <p class="note">Amber markierte Zeilen haben eine Ähnlichkeit &ge; {{ "%.2f"|format(threshold) }} und könnten Wiederholungen sein.</p>
+      <p class="note">Amber markierte Zeilen haben eine &#196;hnlichkeit &ge; {{ "%.2f"|format(threshold) }} und k&#246;nnten Wiederholungen sein.</p>
       {% else %}
-      <p class="empty">Keine verarbeiteten Fragen gefunden.</p>
+      <p class="empty">Keine Fragen gefunden.</p>
       {% endif %}
-    </details>
+    </section>
 
-    {# ── 4. Cluster ── #}
-    <details id="clusters">
-      <summary><h2>Ähnlichkeits-Cluster</h2></summary>
-      {% if clusters %}
-      <p class="note">Schwellenwert: {{ "%.2f"|format(threshold) }}. Gruppen inhaltlich ähnlicher Fragen.</p>
-
-      {% if new_only_clusters %}
-      <div class="cluster-group cluster-group-new">
-        <h3>Neue Cluster <span class="chip">nur neue Fragen</span></h3>
-        <p class="note">Diese Fragen sind sich untereinander ähnlich — mögliche Dopplungen innerhalb des aktuellen Stapels.</p>
-        <ul class="clusters">
-          {% for cluster in new_only_clusters %}
-          <li class="cluster">
-            <strong>{{ cluster[0] }} <span class="chip">{{ cluster|length }} Fragen</span></strong>
-            <ul>
-              {% for stem in cluster %}
-              <li>{{ stem }}</li>
-              {% endfor %}
-            </ul>
-          </li>
-          {% endfor %}
-        </ul>
+    {# ── Cluster section ── #}
+    <section id="clusters">
+      <div class="section-header">
+        <h2>&#196;hnlichkeits-Cluster</h2>
       </div>
-      {% endif %}
+      {% if named_clusters %}
+      <p class="note" style="padding:0.6rem 1.25rem; border-top:none;">Schwellenwert: {{ "%.2f"|format(threshold) }}. Gruppen inhaltlich &#228;hnlicher Fragen.</p>
 
-      {% if mixed_clusters %}
-      <div class="cluster-group cluster-group-mixed">
-        <h3>Gemischte Cluster <span class="chip">neue + ausgestrahlte Fragen</span></h3>
-        <p class="note">Diese Cluster enthalten sowohl neue als auch bereits ausgestrahlte Fragen.</p>
-        <ul class="clusters">
-          {% for cluster in mixed_clusters %}
-          <li class="cluster">
-            <strong>{{ cluster[0] }} <span class="chip">{{ cluster|length }} Fragen</span></strong>
-            <ul>
-              {% for stem in cluster %}
-              <li>{{ stem }}</li>
-              {% endfor %}
-            </ul>
-          </li>
-          {% endfor %}
-        </ul>
-      </div>
-      {% endif %}
+      {% set new_named = named_clusters | rejectattr("is_mixed") | list %}
+      {% set mixed_named = named_clusters | selectattr("is_mixed") | list %}
 
-      {% set singletons = namespace(items=[]) %}
-      {% for cluster in clusters %}{% if cluster|length == 1 %}{% set singletons.items = singletons.items + [cluster] %}{% endif %}{% endfor %}
-      {% if singletons.items %}
-      <ul class="clusters">
-        <li class="singletons">
-          <strong>Einzelne Fragen ({{ singletons.items|length }}):</strong>
-          <ul>
-            {% for cluster in singletons.items %}
-            <li>{{ cluster[0] }}</li>
+      {% if new_named %}
+      <div class="cluster-type-group cluster-group-new">
+        <h3 class="cluster-type-heading">Neue Cluster <span class="chip">nur neue Fragen</span></h3>
+        {% for cluster in new_named %}
+        <div class="cluster-card" data-cluster-id="{{ cluster.id }}">
+          <div class="cluster-name-row">
+            <span class="cluster-name-label">{{ cluster.name }}</span>
+            <span class="chip">{{ cluster.stems|length }} Fragen</span>
+          </div>
+          <ul class="cluster-stems">
+            {% for stem in cluster.stems %}
+            <li>{{ stem }}</li>
             {% endfor %}
           </ul>
-        </li>
-      </ul>
+        </div>
+        {% endfor %}
+      </div>
       {% endif %}
-      {% else %}
-      <p class="empty">Keine Cluster — nicht genug verarbeitete Fragen mit Einbettungen.</p>
-      {% endif %}
-    </details>
 
-    {# ── 5. Ausgestrahlte Fragen ── #}
-    <details id="aired">
-      <summary><h2>Ausgestrahlte Fragen</h2></summary>
-      {% if aired %}
-      <table>
-        <thead>
-          <tr><th>Stem</th><th>Zusammenfassung</th><th>Transkript</th><th>Audio</th></tr>
-        </thead>
-        <tbody>
-          {% for item in aired %}
-          <tr data-stem="{{ item.stem }}" data-summary="{{ item.summary }}" data-section="aired">
-            <td class="stem">{{ item.stem }}</td>
-            <td>{{ item.summary }}</td>
-            <td>{{ transcript_block(item.transcript) }}</td>
-            <td><a class="audio-link" href="file://{{ aired_path }}/{{ item.stem }}.mp3" target="_blank">&#x25B6;</a></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <p class="empty">Keine ausgestrahlten Fragen gefunden.</p>
+      {% if mixed_named %}
+      <div class="cluster-type-group cluster-group-mixed">
+        <h3 class="cluster-type-heading">Gemischte Cluster <span class="chip">neue + ausgestrahlte Fragen</span></h3>
+        {% for cluster in mixed_named %}
+        <div class="cluster-card" data-cluster-id="{{ cluster.id }}">
+          <div class="cluster-name-row">
+            <span class="cluster-name-label">{{ cluster.name }}</span>
+            <span class="chip">{{ cluster.stems|length }} Fragen</span>
+          </div>
+          <ul class="cluster-stems">
+            {% for stem in cluster.stems %}
+            <li>
+              {{ stem }}
+              {% if stem in aired_stems %}<span class="chip chip-aired" title="Ausgestrahlt">&#x1F4E1;</span>{% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endfor %}
+      </div>
       {% endif %}
-    </details>
+
+      {% else %}
+      <p class="empty">Keine Cluster &#x2014; nicht genug verarbeitete Fragen mit Einbettungen.</p>
+      {% endif %}
+    </section>
 
   </main>
 
+  <script>var CLUSTER_NAMES = {{ cluster_names_json | safe }};</script>
   <script>{{ js | safe }}</script>
 </body>
 </html>
