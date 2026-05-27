@@ -29,7 +29,10 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // ── 3. Search + filter chips ─────────────────────────────────────
+  // ── 3. Group-by-cluster state (declared early — used in sortTable) ──
+  var groupByCluster = false;
+
+  // ── 4. Search + filter chips ─────────────────────────────────────
   var searchInput = document.getElementById('q');
   var activeFilter = null;
   var activeKeyword = null;
@@ -40,13 +43,15 @@ document.addEventListener('DOMContentLoaded', function () {
       var text = [
         el.getAttribute('data-stem') || '',
         el.getAttribute('data-summary') || '',
-        el.getAttribute('data-keywords') || ''
+        el.getAttribute('data-keywords') || '',
+        el.getAttribute('data-first-seen') || '',
+        el.getAttribute('data-analyzed-at') || ''
       ].join(' ').toLowerCase();
       if (!text.includes(q)) return false;
     }
     if (activeFilter) {
-      if (activeFilter === 'new'    && el.getAttribute('data-section') !== 'processed') return false;
-      if (activeFilter === 'aired'  && el.getAttribute('data-section') !== 'aired')     return false;
+      if (activeFilter === 'new'   && el.getAttribute('data-section') !== 'processed') return false;
+      if (activeFilter === 'aired' && el.getAttribute('data-section') !== 'aired')     return false;
     }
     if (activeKeyword) {
       var kws = (el.getAttribute('data-keywords') || '').split(',').map(function (k) { return k.trim(); });
@@ -62,6 +67,8 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     updateAllQuestionsCount();
     currentPage = 1;
+    // Rebuild cluster headers so row counts reflect the filtered state.
+    if (groupByCluster) applyGroupByCluster();
     applyPagination();
   }
 
@@ -111,7 +118,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // ── 4. Keyword cloud ─────────────────────────────────────────────
+  // ── 5. Keyword cloud ─────────────────────────────────────────────
   var cloudEl = document.getElementById('keyword-cloud');
   var toggleCloudBtn = document.getElementById('toggle-keyword-cloud');
 
@@ -175,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function () {
     toggleKeyword(kw, cloudBtn);
   });
 
-  // ── 5. Sortable table ────────────────────────────────────────────
+  // ── 6. Sortable table ────────────────────────────────────────────
   var sortCol = 'novelty';
   var sortDir = 'desc';
 
@@ -195,6 +202,10 @@ document.addEventListener('DOMContentLoaded', function () {
       if (sortCol === 'first-seen' || sortCol === 'analyzed-at') {
         var av = a.getAttribute('data-' + sortCol) || '';
         var bv = b.getAttribute('data-' + sortCol) || '';
+        // Treat missing dates as always last regardless of direction
+        if (!av && !bv) return 0;
+        if (!av) return 1;
+        if (!bv) return -1;
         return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
       }
       var av = parseFloat(a.getAttribute('data-' + sortCol) || 0);
@@ -231,9 +242,12 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   sortTable();
 
-  // ── 6. Group by cluster ──────────────────────────────────────────
-  var groupByCluster = false;
-  // CLUSTER_NAMES is injected by the template as a global var
+  // ── 7. Group by cluster ──────────────────────────────────────────
+  // CLUSTER_NAMES injected by template as a global var
+
+  function colCount() {
+    return document.querySelectorAll('#all-questions-table thead th').length || 9;
+  }
 
   function removeClusterHeaders() {
     var tbody = document.getElementById('all-questions-tbody');
@@ -263,22 +277,48 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     var clusterNames = (typeof CLUSTER_NAMES !== 'undefined') ? CLUSTER_NAMES : {};
+    var cols = colCount();
 
     Object.keys(clusterGroups).forEach(function (cid) {
+      // Count only visible (non-filtered) rows for this cluster
+      var visibleRows = clusterGroups[cid].filter(function (r) {
+        return !r.classList.contains('item-hidden');
+      });
+      if (visibleRows.length === 0) return; // skip entirely-filtered clusters
+
       var name = clusterNames[cid] || cid;
-      var count = clusterGroups[cid].length;
       var headerRow = document.createElement('tr');
       headerRow.className = 'cluster-header-row';
-      headerRow.innerHTML = '<td colspan="9" class="cluster-header-cell">&#x1F4CC; ' +
-        name + ' <span class="chip">' + count + ' Fragen</span></td>';
+      var td = document.createElement('td');
+      td.colSpan = cols;
+      td.className = 'cluster-header-cell';
+      // Use DOM methods (not innerHTML) to avoid injection from LLM-derived names
+      td.appendChild(document.createTextNode('📌 ' + name + ' '));
+      var chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = visibleRows.length + ' Fragen';
+      td.appendChild(chip);
+      headerRow.appendChild(td);
       tbody.appendChild(headerRow);
       clusterGroups[cid].forEach(function (r) { tbody.appendChild(r); });
     });
 
-    if (noCluster.length > 0) {
+    // Non-clustered rows
+    var visibleSingletons = noCluster.filter(function (r) {
+      return !r.classList.contains('item-hidden');
+    });
+    if (visibleSingletons.length > 0) {
       var singletonRow = document.createElement('tr');
       singletonRow.className = 'cluster-header-row';
-      singletonRow.innerHTML = '<td colspan="9" class="cluster-header-cell">Einzelne Fragen <span class="chip">' + noCluster.length + '</span></td>';
+      var std = document.createElement('td');
+      std.colSpan = cols;
+      std.className = 'cluster-header-cell';
+      std.appendChild(document.createTextNode('Einzelne Fragen '));
+      var schip = document.createElement('span');
+      schip.className = 'chip';
+      schip.textContent = String(visibleSingletons.length);
+      std.appendChild(schip);
+      singletonRow.appendChild(std);
       tbody.appendChild(singletonRow);
       noCluster.forEach(function (r) { tbody.appendChild(r); });
     }
@@ -299,7 +339,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // ── 7. Pagination ────────────────────────────────────────────────
+  // ── 8. Pagination ────────────────────────────────────────────────
   var currentPage = 1;
   var pageSize = 25;
 
@@ -361,7 +401,7 @@ document.addEventListener('DOMContentLoaded', function () {
     pageBtn('›', currentPage + 1, currentPage === totalPages, false);
   }
 
-  // initial render
+  // ── init ─────────────────────────────────────────────────────────
   updateAllQuestionsCount();
   applyPagination();
 });

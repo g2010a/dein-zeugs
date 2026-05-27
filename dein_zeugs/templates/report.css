@@ -246,11 +246,6 @@ tr.row-aired.repeat td {
   font-weight: 500;
 }
 
-.chip-repeat {
-  background: #fef3c7;
-  color: #92400e;
-}
-
 .chip-aired {
   background: #e0f2fe;
   color: #0369a1;
@@ -563,16 +558,6 @@ th.sort-active {
   margin: 0.75rem 1.25rem;
   padding: 0.75rem 1rem;
   border-radius: 6px;
-}
-
-.cluster-type-group-new {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-}
-
-.cluster-type-group-mixed {
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
 }
 
 .cluster-group-new {

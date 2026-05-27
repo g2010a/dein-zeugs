@@ -25,9 +25,11 @@ def _derive_cluster_name(cluster_stems: list[str], items_by_stem: dict) -> str:
         top = sorted(kw_count.items(), key=lambda x: (-x[1], x[0]))[:3]
         return ", ".join(kw for kw, _ in top)
 
-    # Fallback: truncated summary of first item
+    # Fallback: truncated summary of first item, then stem if still empty
     first = items_by_stem.get(cluster_stems[0], {})
-    summary = first.get("summary", cluster_stems[0])
+    summary = first.get("summary", "").strip()
+    if not summary:
+        return cluster_stems[0]
     words = summary.split()
     return (" ".join(words[:6]) + "…") if len(words) > 6 else summary
 
@@ -169,15 +171,18 @@ def render_report(paths: ProjectPaths, config) -> Path:
     js = js_path.read_text() if js_path.exists() else ""
 
     llm_error_count = sum(1 for item in processed_items if item.get("llm_error"))
-    cluster_names_json = json.dumps({c["id"]: c["name"] for c in named_clusters})
+    cluster_names_json = (
+        json.dumps({c["id"]: c["name"] for c in named_clusters})
+        .replace("</", "<\\/")
+        .replace("<!--", "<\\!--")
+        .replace(" ", "\\u2028")
+        .replace(" ", "\\u2029")
+    )
 
     html = template.render(
         aired=aired_items,
         processed=processed_items,
-        clusters=clusters,
         named_clusters=named_clusters,
-        new_only_clusters=new_only_clusters,
-        mixed_clusters=mixed_clusters,
         aired_stems=aired_stems,
         aired_count=aired_count,
         total_questions_count=total_questions_count,
