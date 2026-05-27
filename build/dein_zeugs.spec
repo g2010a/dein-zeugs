@@ -1,10 +1,10 @@
 # -*- mode: python ; coding: utf-8 -*-
 block_cipher = None
 a = Analysis(
-    ['../podq/__main__.py'],
+    ['../dein_zeugs/__main__.py'],
     pathex=[],
     binaries=[],
-    datas=[('../podq/templates', 'podq/templates')],
+    datas=[('../dein_zeugs/templates', 'dein_zeugs/templates')],
     hiddenimports=[
         'faster_whisper',
         'ctranslate2',
@@ -24,7 +24,7 @@ a = Analysis(
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
     pyz, a.scripts, a.binaries, a.zipfiles, a.datas, [],
-    name='podq',
+    name='dein-zeugs',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
