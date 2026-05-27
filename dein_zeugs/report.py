@@ -1,3 +1,4 @@
+import json
 import logging
 import yaml
 from pathlib import Path
@@ -9,7 +10,26 @@ from dein_zeugs.util.atomic import atomic_write
 
 log = logging.getLogger("dein_zeugs")
 
-_DEFAULT_STANDOUTS_COUNT = 10
+
+def _derive_cluster_name(cluster_stems: list[str], items_by_stem: dict) -> str:
+    """Derive a short human-readable label from the cluster members' keywords/summaries."""
+    kw_count: dict[str, int] = {}
+    for stem in cluster_stems:
+        item = items_by_stem.get(stem, {})
+        for kw in item.get("keywords", []):
+            kw = kw.strip()
+            if kw:
+                kw_count[kw] = kw_count.get(kw, 0) + 1
+
+    if kw_count:
+        top = sorted(kw_count.items(), key=lambda x: (-x[1], x[0]))[:3]
+        return ", ".join(kw for kw, _ in top)
+
+    # Fallback: truncated summary of first item
+    first = items_by_stem.get(cluster_stems[0], {})
+    summary = first.get("summary", cluster_stems[0])
+    words = summary.split()
+    return (" ".join(words[:6]) + "…") if len(words) > 6 else summary
 
 
 def render_report(paths: ProjectPaths, config) -> Path:
@@ -31,12 +51,38 @@ def render_report(paths: ProjectPaths, config) -> Path:
                 data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
                 summary = data.get("summary", "(keine Analyse)")
                 transcript = data.get("transcript", "")
+                kws = data.get("keywords", [])
+                similarity_score = data.get("similarity_score", 0.0)
+                novelty_score = data.get("novelty_score", 0.0)
+                nearest_aired_stem = data.get("nearest_aired_stem")
+                llm_error = data.get("llm_error")
+                first_seen = data.get("first_seen", data.get("analyzed_at", ""))
+                analyzed_at = data.get("analyzed_at", "")
             else:
                 summary = "(keine Analyse)"
                 transcript = ""
-            aired_items.append({"stem": stem, "summary": summary, "transcript": transcript})
+                kws = []
+                similarity_score = 0.0
+                novelty_score = 0.0
+                nearest_aired_stem = None
+                llm_error = None
+                first_seen = ""
+                analyzed_at = ""
+            aired_items.append({
+                "stem": stem,
+                "summary": summary,
+                "transcript": transcript,
+                "keywords": kws,
+                "similarity_score": similarity_score,
+                "novelty_score": novelty_score,
+                "nearest_aired_stem": nearest_aired_stem,
+                "llm_error": llm_error,
+                "first_seen": first_seen,
+                "analyzed_at": analyzed_at,
+                "is_aired": True,
+            })
 
-    # 2. Processed questions (yaml)
+    # 2. Processed questions (yaml, inbox only)
     processed_items = []
     for yaml_file in sorted(paths.analysis.glob("*.yaml")):
         stem = normalize_stem(yaml_file.stem)
@@ -53,24 +99,18 @@ def render_report(paths: ProjectPaths, config) -> Path:
             "standout_score": data.get("standout_score", data.get("novelty_score", 1.0)),
             "nearest_aired_stem": data.get("nearest_aired_stem"),
             "llm_error": data.get("llm_error"),
+            "first_seen": data.get("first_seen", data.get("analyzed_at", "")),
+            "analyzed_at": data.get("analyzed_at", ""),
+            "is_aired": False,
         })
     processed_items.sort(key=lambda x: x["novelty_score"], reverse=True)
 
-    # 3. Standouts — top-N by standout_score (fallback to novelty_score)
-    standouts_count = getattr(config, "standouts_count", _DEFAULT_STANDOUTS_COUNT)
-    standouts = sorted(
-        processed_items,
-        key=lambda x: x["standout_score"],
-        reverse=True,
-    )[:standouts_count]
+    # 3. Build stem → item lookup for cluster naming
+    items_by_stem: dict[str, dict] = {}
+    for item in processed_items + aired_items:
+        items_by_stem[item["stem"]] = item
 
-    # 4. Possible repeats — items with similarity >= threshold
-    possible_repeats = [
-        item for item in processed_items
-        if item["similarity_score"] >= config.similarity_threshold
-    ]
-
-    # 5. Clusters — reload with embeddings
+    # 4. Clusters — reload with embeddings
     processed_with_emb = []
     for yaml_file in paths.analysis.glob("*.yaml"):
         try:
@@ -81,7 +121,7 @@ def render_report(paths: ProjectPaths, config) -> Path:
             continue
     clusters = build_clusters(processed_with_emb, config.similarity_threshold)
 
-    # Split clusters into new-only and mixed
+    # Split clusters into new-only and mixed (for template)
     new_only_clusters = []
     mixed_clusters = []
     for cluster in clusters:
@@ -91,6 +131,28 @@ def render_report(paths: ProjectPaths, config) -> Path:
             new_only_clusters.append(cluster)
         else:
             mixed_clusters.append(cluster)
+
+    # Generate named cluster objects and stem→cluster mapping
+    named_clusters = []
+    stem_to_cluster_id: dict[str, str] = {}
+    for i, cluster in enumerate(clusters):
+        if len(cluster) <= 1:
+            continue
+        cid = f"cluster_{i}"
+        name = _derive_cluster_name(cluster, items_by_stem)
+        is_mixed = any(stem in aired_stems for stem in cluster)
+        named_clusters.append({
+            "id": cid,
+            "name": name,
+            "stems": cluster,
+            "is_mixed": is_mixed,
+        })
+        for stem in cluster:
+            stem_to_cluster_id[stem] = cid
+
+    # Attach cluster_id to every item
+    for item in processed_items + aired_items:
+        item["cluster_id"] = stem_to_cluster_id.get(item["stem"])
 
     # Count metrics
     aired_count = len(aired_items)
@@ -107,22 +169,23 @@ def render_report(paths: ProjectPaths, config) -> Path:
     js = js_path.read_text() if js_path.exists() else ""
 
     llm_error_count = sum(1 for item in processed_items if item.get("llm_error"))
+    cluster_names_json = json.dumps({c["id"]: c["name"] for c in named_clusters})
 
     html = template.render(
         aired=aired_items,
         processed=processed_items,
         clusters=clusters,
-        standouts=standouts,
-        standouts_count=standouts_count,
-        possible_repeats=possible_repeats,
-        aired_count=aired_count,
-        total_questions_count=total_questions_count,
+        named_clusters=named_clusters,
         new_only_clusters=new_only_clusters,
         mixed_clusters=mixed_clusters,
+        aired_stems=aired_stems,
+        aired_count=aired_count,
+        total_questions_count=total_questions_count,
         inbox_path=inbox_path,
         aired_path=aired_path,
         threshold=config.similarity_threshold,
         llm_error_count=llm_error_count,
+        cluster_names_json=cluster_names_json,
         css=css,
         js=js,
     )
