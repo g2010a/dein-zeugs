@@ -191,8 +191,10 @@ def _analyze_one(
     sim, nov, nearest = score(emb, aired_embeddings)
     summary_text = summarize(text, config.llm_model_path)
     kws = keywords(text, config.llm_model_path)
+    first_seen = datetime.fromtimestamp(mp3.stat().st_mtime, timezone.utc).isoformat()
     data: dict = {
         "stem": stem,
+        "first_seen": first_seen,
         "transcript": text,
         "summary": summary_text,
         "keywords": kws,
