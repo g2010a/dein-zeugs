@@ -50,7 +50,6 @@ def ensure_whisper_model(model_name: str = "medium") -> None:
     except Exception:
         pass
     log.info(f"Downloading Whisper {model_name} model...")
-    huggingface_hub.enable_progress_bars()
     huggingface_hub.snapshot_download(repo_id, tqdm_class=_make_forced_tqdm())
 
 
@@ -66,7 +65,6 @@ def ensure_llm_model(model_path: str) -> str:
     log.info(f"Downloading LLM model to {path} (~2 GB, one-time)...")
 
     import huggingface_hub
-    huggingface_hub.enable_progress_bars()
     downloaded = huggingface_hub.hf_hub_download(
         repo_id=_MODEL_REPO_ID,
         filename=_MODEL_FILE,

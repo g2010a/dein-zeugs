@@ -161,11 +161,6 @@ def _load_config_optional(root_arg: str | None) -> Config:
 def _warm_models(log, config: Config, skip_llm: bool = False):
     print("Modell-Cache wird vorbereitet...", flush=True)
 
-    try:
-        import huggingface_hub
-        huggingface_hub.enable_progress_bars()
-    except Exception:
-        pass
 
     total_stages = 2 if skip_llm else 3
 
