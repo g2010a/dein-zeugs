@@ -99,8 +99,6 @@ def _fmt_size(nbytes: int) -> str:
 
 def clean_downloads(config, yes: bool = False) -> None:
     """Delete all downloaded model files, optionally prompting for confirmation."""
-    import shutil
-
     try:
         import huggingface_hub.constants as _hfc
         hf_cache = Path(_hfc.HF_HUB_CACHE)
@@ -158,8 +156,6 @@ def clean_downloads(config, yes: bool = False) -> None:
 
 def clean_outputs(paths, yes: bool = False) -> None:
     """Delete all generated output dirs (transcripts, analysis, reports), preserving inbox/."""
-    import shutil
-
     targets = [
         (paths.analysis, "Analysis"),
         (paths.reports, "Reports"),

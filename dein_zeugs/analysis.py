@@ -93,11 +93,6 @@ def keywords(text: str, model_path: str) -> list[str]:
     return list(dict.fromkeys(parts))[:5]
 
 
-def _cosine(a: np.ndarray, b: np.ndarray) -> float:
-    """Cosine similarity between two vectors (assumed unit-normalised)."""
-    return float(np.dot(a, b))
-
-
 def score(
     new_embedding: np.ndarray,
     aired_embeddings: list[tuple[str, np.ndarray]],
@@ -146,7 +141,7 @@ def compute_intra_batch_scores(paths: ProjectPaths, aired_stems: set[str]) -> No
             intra = 1.0
         else:
             max_sim = max(
-                _cosine(emb_i, emb_j)
+                float(np.dot(emb_i, emb_j))
                 for j, (_, emb_j, _) in enumerate(batch_items)
                 if j != i
             )

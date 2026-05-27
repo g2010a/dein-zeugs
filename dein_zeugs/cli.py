@@ -65,7 +65,7 @@ def main(argv=None):
     )
     parser.add_argument(
         "root", nargs="?",
-        help="Wurzelverzeichnis des Projekts (Standard: ~/Podq). Wird inklusive Unterverzeichnissen automatisch angelegt.",
+        help="Wurzelverzeichnis des Projekts (Standard: ~/DeinZeugs). Wird inklusive Unterverzeichnissen automatisch angelegt.",
     )
     parser.add_argument("--warm-models", action="store_true", help="Modell-Cache vorab aufwärmen und dann beenden")
     parser.add_argument("--skip-llm", action="store_true", help="Beim Aufwärmen das LLM-Modell überspringen (nur mit --warm-models sinnvoll)")
@@ -83,7 +83,7 @@ def main(argv=None):
             clean_downloads(config, yes=args.yes)
         return 0
 
-    # Default the root to ~/Podq when not provided (no model-management flag was set above).
+    # Default the root to ~/DeinZeugs when not provided (no model-management flag was set above).
     if args.root:
         root = Path(args.root).resolve()
     else:
@@ -160,7 +160,6 @@ def _load_config_optional(root_arg: str | None) -> Config:
 
 def _warm_models(log, config: Config, skip_llm: bool = False):
     print("Modell-Cache wird vorbereitet...", flush=True)
-
 
     total_stages = 2 if skip_llm else 3
 
