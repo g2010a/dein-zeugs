@@ -123,17 +123,6 @@ def render_report(paths: ProjectPaths, config) -> Path:
             continue
     clusters = build_clusters(processed_with_emb, config.similarity_threshold)
 
-    # Split clusters into new-only and mixed (for template)
-    new_only_clusters = []
-    mixed_clusters = []
-    for cluster in clusters:
-        if len(cluster) <= 1:
-            continue
-        if all(stem not in aired_stems for stem in cluster):
-            new_only_clusters.append(cluster)
-        else:
-            mixed_clusters.append(cluster)
-
     # Generate named cluster objects and stem→cluster mapping
     named_clusters = []
     stem_to_cluster_id: dict[str, str] = {}
@@ -183,7 +172,6 @@ def render_report(paths: ProjectPaths, config) -> Path:
         aired=aired_items,
         processed=processed_items,
         named_clusters=named_clusters,
-        aired_stems=aired_stems,
         aired_count=aired_count,
         total_questions_count=total_questions_count,
         inbox_path=inbox_path,

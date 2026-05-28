@@ -13,7 +13,6 @@
 <body>
   <nav class="sticky-nav">
     <a href="#all-questions">Alle Fragen (<span id="nav-all-count">{{ (processed|length) + (aired|length) }}</span>)</a>
-    <a href="#clusters">Cluster ({{ named_clusters|length }})</a>
   </nav>
 
   <div class="filter-bar">
@@ -26,6 +25,12 @@
     </div>
   </div>
   <div id="keyword-cloud" class="keyword-cloud" style="display:none"></div>
+  <div id="cluster-sort-toolbar" class="cluster-sort-toolbar" style="display:none">
+    <span>Cluster sortieren:</span>
+    <button class="cluster-sort-btn sort-btn-active sort-btn-desc" data-sort="count">Anzahl &#x25BC;</button>
+    <button class="cluster-sort-btn" data-sort="name">Name</button>
+    <button class="cluster-sort-btn" data-sort="date">Datum</button>
+  </div>
 
   <main>
     <div class="banner">
@@ -57,10 +62,7 @@
             <th>Zusammenfassung</th>
             <th>Transkript</th>
             <th>Schlagw&#246;rter</th>
-            <th data-sort="similarity">&#196;hnlichkeit <span class="sort-icon"></span></th>
-            <th data-sort="novelty" class="sort-active sort-desc">Neuheitswert <span class="sort-icon">&#x25BC;</span></th>
-            <th data-sort="first-seen">Erstmals gesehen <span class="sort-icon"></span></th>
-            <th data-sort="analyzed-at">Zuletzt verarbeitet <span class="sort-icon"></span></th>
+            <th data-sort="first-seen" class="sort-active sort-desc">Datum <span class="sort-icon">&#x25BC;</span></th>
             <th>Audio</th>
           </tr>
         </thead>
@@ -81,15 +83,7 @@
             <td>{{ item.summary }}</td>
             <td>{{ transcript_block(item.transcript) }}</td>
             <td>{% for kw in item.keywords %}<span class="chip chip-kw" data-kw="{{ kw | lower }}">{{ kw }}</span> {% endfor %}</td>
-            <td>{{ "%.2f"|format(item.similarity_score) }}</td>
-            <td>
-              <div class="novelty-cell">
-                <div class="bar-mini"><div class="bar-fill {% if item.novelty_score >= 0.7 %}bar-green{% elif item.novelty_score >= 0.4 %}bar-amber{% else %}bar-red{% endif %}" style="width:{{ (item.novelty_score * 100)|round|int }}%"></div></div>
-                {{ "%.2f"|format(item.novelty_score) }}
-              </div>
-            </td>
-            <td class="date-cell">{{ item.first_seen[:10] if item.first_seen else "&#x2014;" }}</td>
-            <td class="date-cell">{{ item.analyzed_at[:10] if item.analyzed_at else "&#x2014;" }}</td>
+            <td class="date-cell">{{ item.first_seen[:10] if item.first_seen else "&#x2014;" }}{% if item.analyzed_at and item.analyzed_at[:10] != item.first_seen[:10] %}<span class="date-secondary">&#x21BB;&nbsp;{{ item.analyzed_at[:10] }}</span>{% endif %}</td>
             <td><a class="audio-link" href="file://{{ inbox_path }}/{{ item.stem }}.mp3" target="_blank">&#x25B6;</a></td>
           </tr>
           {% endfor %}
@@ -112,15 +106,7 @@
             <td>{{ item.summary }}</td>
             <td>{{ transcript_block(item.transcript) }}</td>
             <td>{% for kw in item.keywords %}<span class="chip chip-kw" data-kw="{{ kw | lower }}">{{ kw }}</span> {% endfor %}</td>
-            <td>{{ "%.2f"|format(item.similarity_score) }}</td>
-            <td>
-              <div class="novelty-cell">
-                <div class="bar-mini"><div class="bar-fill bar-gray" style="width:{{ (item.novelty_score * 100)|round|int }}%"></div></div>
-                {{ "%.2f"|format(item.novelty_score) }}
-              </div>
-            </td>
-            <td class="date-cell">{{ item.first_seen[:10] if item.first_seen else "&#x2014;" }}</td>
-            <td class="date-cell">{{ item.analyzed_at[:10] if item.analyzed_at else "&#x2014;" }}</td>
+            <td class="date-cell">{{ item.first_seen[:10] if item.first_seen else "&#x2014;" }}{% if item.analyzed_at and item.analyzed_at[:10] != item.first_seen[:10] %}<span class="date-secondary">&#x21BB;&nbsp;{{ item.analyzed_at[:10] }}</span>{% endif %}</td>
             <td><a class="audio-link" href="file://{{ aired_path }}/{{ item.stem }}.mp3" target="_blank">&#x25B6;</a></td>
           </tr>
           {% endfor %}
@@ -141,63 +127,6 @@
       <p class="note">Amber markierte Zeilen haben eine &#196;hnlichkeit &ge; {{ "%.2f"|format(threshold) }} und k&#246;nnten Wiederholungen sein.</p>
       {% else %}
       <p class="empty">Keine Fragen gefunden.</p>
-      {% endif %}
-    </section>
-
-    {# ── Cluster section ── #}
-    <section id="clusters">
-      <div class="section-header">
-        <h2>&#196;hnlichkeits-Cluster</h2>
-      </div>
-      {% if named_clusters %}
-      <p class="note" style="padding:0.6rem 1.25rem; border-top:none;">Schwellenwert: {{ "%.2f"|format(threshold) }}. Gruppen inhaltlich &#228;hnlicher Fragen.</p>
-
-      {% set new_named = named_clusters | rejectattr("is_mixed") | list %}
-      {% set mixed_named = named_clusters | selectattr("is_mixed") | list %}
-
-      {% if new_named %}
-      <div class="cluster-type-group cluster-group-new">
-        <h3 class="cluster-type-heading">Neue Cluster <span class="chip">nur neue Fragen</span></h3>
-        {% for cluster in new_named %}
-        <div class="cluster-card" data-cluster-id="{{ cluster.id }}">
-          <div class="cluster-name-row">
-            <span class="cluster-name-label">{{ cluster.name }}</span>
-            <span class="chip">{{ cluster.stems|length }} Fragen</span>
-          </div>
-          <ul class="cluster-stems">
-            {% for stem in cluster.stems %}
-            <li>{{ stem }}</li>
-            {% endfor %}
-          </ul>
-        </div>
-        {% endfor %}
-      </div>
-      {% endif %}
-
-      {% if mixed_named %}
-      <div class="cluster-type-group cluster-group-mixed">
-        <h3 class="cluster-type-heading">Gemischte Cluster <span class="chip">neue + ausgestrahlte Fragen</span></h3>
-        {% for cluster in mixed_named %}
-        <div class="cluster-card" data-cluster-id="{{ cluster.id }}">
-          <div class="cluster-name-row">
-            <span class="cluster-name-label">{{ cluster.name }}</span>
-            <span class="chip">{{ cluster.stems|length }} Fragen</span>
-          </div>
-          <ul class="cluster-stems">
-            {% for stem in cluster.stems %}
-            <li>
-              {{ stem }}
-              {% if stem in aired_stems %}<span class="chip chip-aired" title="Ausgestrahlt">&#x1F4E1;</span>{% endif %}
-            </li>
-            {% endfor %}
-          </ul>
-        </div>
-        {% endfor %}
-      </div>
-      {% endif %}
-
-      {% else %}
-      <p class="empty">Keine Cluster &#x2014; nicht genug verarbeitete Fragen mit Einbettungen.</p>
       {% endif %}
     </section>
 

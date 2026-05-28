@@ -31,6 +31,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ── 3. Group-by-cluster state (declared early — used in sortTable) ──
   var groupByCluster = false;
+  var collapsedClusters = new Set();
+  var clusterSortCol = 'count';
+  var clusterSortDir = 'desc';
 
   // ── 4. Search + filter chips ─────────────────────────────────────
   var searchInput = document.getElementById('q');
@@ -67,7 +70,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     updateAllQuestionsCount();
     currentPage = 1;
-    // Rebuild cluster headers so row counts reflect the filtered state.
     if (groupByCluster) applyGroupByCluster();
     applyPagination();
   }
@@ -163,7 +165,6 @@ document.addEventListener('DOMContentLoaded', function () {
     applyFilters();
   }
 
-  // keyword chip click inside table activates cloud filter
   document.addEventListener('click', function (e) {
     var chip = e.target.closest('.chip-kw');
     if (!chip) return;
@@ -183,11 +184,11 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // ── 6. Sortable table ────────────────────────────────────────────
-  var sortCol = 'novelty';
+  var sortCol = 'first-seen';
   var sortDir = 'desc';
 
   function sortTable() {
-    if (groupByCluster) return; // sort disabled while grouped
+    if (groupByCluster) return;
     var tbody = document.getElementById('all-questions-tbody');
     if (!tbody) return;
     var rows = Array.from(tbody.rows).filter(function (r) {
@@ -202,7 +203,6 @@ document.addEventListener('DOMContentLoaded', function () {
       if (sortCol === 'first-seen' || sortCol === 'analyzed-at') {
         var av = a.getAttribute('data-' + sortCol) || '';
         var bv = b.getAttribute('data-' + sortCol) || '';
-        // Treat missing dates as always last regardless of direction
         if (!av && !bv) return 0;
         if (!av) return 1;
         if (!bv) return -1;
@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', function () {
         sortDir = sortDir === 'asc' ? 'desc' : 'asc';
       } else {
         sortCol = col;
-        sortDir = (col === 'stem' || col === 'first-seen' || col === 'analyzed-at') ? 'asc' : 'desc';
+        sortDir = col === 'stem' ? 'asc' : 'desc';
       }
       sortTable();
     });
@@ -246,13 +246,22 @@ document.addEventListener('DOMContentLoaded', function () {
   // CLUSTER_NAMES injected by template as a global var
 
   function colCount() {
-    return document.querySelectorAll('#all-questions-table thead th').length || 9;
+    return document.querySelectorAll('#all-questions-table thead th').length || 6;
   }
 
   function removeClusterHeaders() {
     var tbody = document.getElementById('all-questions-tbody');
     if (!tbody) return;
     Array.from(tbody.querySelectorAll('.cluster-header-row')).forEach(function (r) { r.remove(); });
+  }
+
+  function getClusterDate(rows) {
+    var maxDate = '';
+    rows.forEach(function (r) {
+      var d = r.getAttribute('data-first-seen') || '';
+      if (d > maxDate) maxDate = d;
+    });
+    return maxDate;
   }
 
   function applyGroupByCluster() {
@@ -263,6 +272,9 @@ document.addEventListener('DOMContentLoaded', function () {
     var rows = Array.from(tbody.rows).filter(function (r) {
       return !r.classList.contains('cluster-header-row');
     });
+
+    // Clear previous collapsed-row state before rebuilding
+    rows.forEach(function (r) { r.classList.remove('cluster-collapsed-row'); });
 
     var clusterGroups = {};
     var noCluster = [];
@@ -279,31 +291,68 @@ document.addEventListener('DOMContentLoaded', function () {
     var clusterNames = (typeof CLUSTER_NAMES !== 'undefined') ? CLUSTER_NAMES : {};
     var cols = colCount();
 
-    Object.keys(clusterGroups).forEach(function (cid) {
-      // Count only visible (non-filtered) rows for this cluster
+    // Sort cluster IDs by chosen criterion
+    var sortedCids = Object.keys(clusterGroups);
+    sortedCids.sort(function (a, b) {
+      if (clusterSortCol === 'name') {
+        var an = (clusterNames[a] || a).toLowerCase();
+        var bn = (clusterNames[b] || b).toLowerCase();
+        return clusterSortDir === 'asc' ? an.localeCompare(bn, 'de') : bn.localeCompare(an, 'de');
+      }
+      if (clusterSortCol === 'date') {
+        var ad = getClusterDate(clusterGroups[a]);
+        var bd = getClusterDate(clusterGroups[b]);
+        if (!ad && !bd) return 0;
+        if (!ad) return 1;
+        if (!bd) return -1;
+        return clusterSortDir === 'asc' ? ad.localeCompare(bd) : bd.localeCompare(ad);
+      }
+      // count (default)
+      var ac = clusterGroups[a].filter(function (r) { return !r.classList.contains('item-hidden'); }).length;
+      var bc = clusterGroups[b].filter(function (r) { return !r.classList.contains('item-hidden'); }).length;
+      return clusterSortDir === 'asc' ? ac - bc : bc - ac;
+    });
+
+    sortedCids.forEach(function (cid) {
       var visibleRows = clusterGroups[cid].filter(function (r) {
         return !r.classList.contains('item-hidden');
       });
-      if (visibleRows.length === 0) return; // skip entirely-filtered clusters
+      if (visibleRows.length === 0) return;
 
       var name = clusterNames[cid] || cid;
+      var isCollapsed = collapsedClusters.has(cid);
+
       var headerRow = document.createElement('tr');
       headerRow.className = 'cluster-header-row';
+      headerRow.setAttribute('data-cluster-id', cid);
+
       var td = document.createElement('td');
       td.colSpan = cols;
       td.className = 'cluster-header-cell';
-      // Use DOM methods (not innerHTML) to avoid injection from LLM-derived names
-      td.appendChild(document.createTextNode('📌 ' + name + ' '));
+
+      var collapseBtn = document.createElement('button');
+      collapseBtn.className = 'cluster-collapse-btn';
+      collapseBtn.title = isCollapsed ? 'Aufklappen' : 'Zuklappen';
+      collapseBtn.setAttribute('data-cid', cid);
+      collapseBtn.textContent = isCollapsed ? '▶' : '▼';
+      td.appendChild(collapseBtn);
+
+      td.appendChild(document.createTextNode(' ' + name + ' '));
       var chip = document.createElement('span');
       chip.className = 'chip';
       chip.textContent = visibleRows.length + ' Fragen';
       td.appendChild(chip);
+
       headerRow.appendChild(td);
       tbody.appendChild(headerRow);
-      clusterGroups[cid].forEach(function (r) { tbody.appendChild(r); });
+
+      clusterGroups[cid].forEach(function (r) {
+        if (isCollapsed) r.classList.add('cluster-collapsed-row');
+        tbody.appendChild(r);
+      });
     });
 
-    // Non-clustered rows
+    // Non-clustered rows at the end
     var visibleSingletons = noCluster.filter(function (r) {
       return !r.classList.contains('item-hidden');
     });
@@ -313,7 +362,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var std = document.createElement('td');
       std.colSpan = cols;
       std.className = 'cluster-header-cell';
-      std.appendChild(document.createTextNode('Einzelne Fragen '));
+      std.appendChild(document.createTextNode('Einzelne Fragen '));
       var schip = document.createElement('span');
       schip.className = 'chip';
       schip.textContent = String(visibleSingletons.length);
@@ -324,15 +373,67 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
+  // Cluster collapse toggle via event delegation
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.cluster-collapse-btn');
+    if (!btn) return;
+    var cid = btn.getAttribute('data-cid');
+    if (!cid) return;
+    if (collapsedClusters.has(cid)) {
+      collapsedClusters.delete(cid);
+    } else {
+      collapsedClusters.add(cid);
+    }
+    applyGroupByCluster();
+    applyPagination();
+  });
+
+  // Cluster sort buttons
+  var clusterSortToolbar = document.getElementById('cluster-sort-toolbar');
+
+  function updateClusterSortButtons() {
+    document.querySelectorAll('.cluster-sort-btn').forEach(function (b) {
+      var bCol = b.getAttribute('data-sort');
+      var label = bCol === 'count' ? 'Anzahl' : bCol === 'name' ? 'Name' : 'Datum';
+      b.classList.remove('sort-btn-active', 'sort-btn-asc', 'sort-btn-desc');
+      if (bCol === clusterSortCol) {
+        b.classList.add('sort-btn-active', 'sort-btn-' + clusterSortDir);
+        b.textContent = label + (clusterSortDir === 'asc' ? ' ▲' : ' ▼');
+      } else {
+        b.textContent = label;
+      }
+    });
+  }
+
+  document.querySelectorAll('.cluster-sort-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var col = btn.getAttribute('data-sort');
+      if (clusterSortCol === col) {
+        clusterSortDir = clusterSortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        clusterSortCol = col;
+        clusterSortDir = col === 'name' ? 'asc' : 'desc';
+      }
+      updateClusterSortButtons();
+      applyGroupByCluster();
+      applyPagination();
+    });
+  });
+
   var groupBtn = document.getElementById('btn-group-by-cluster');
   if (groupBtn) {
     groupBtn.addEventListener('click', function () {
       groupByCluster = !groupByCluster;
       groupBtn.classList.toggle('filter-btn-active', groupByCluster);
+      if (clusterSortToolbar) clusterSortToolbar.style.display = groupByCluster ? '' : 'none';
       if (groupByCluster) {
         applyGroupByCluster();
       } else {
         removeClusterHeaders();
+        collapsedClusters.clear();
+        document.querySelectorAll('.cluster-collapsed-row').forEach(function (r) {
+          r.classList.remove('cluster-collapsed-row');
+        });
         sortTable();
       }
       applyPagination();
@@ -358,7 +459,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!tbody || !controls) return;
 
     var visibleRows = Array.from(tbody.rows).filter(function (r) {
-      return !r.classList.contains('item-hidden') && !r.classList.contains('cluster-header-row');
+      return !r.classList.contains('item-hidden')
+        && !r.classList.contains('cluster-header-row')
+        && !r.classList.contains('cluster-collapsed-row');
     });
     var total = visibleRows.length;
 

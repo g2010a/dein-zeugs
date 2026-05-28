@@ -76,9 +76,9 @@ def test_report_sections(tmp_path):
 
     soup = BeautifulSoup(report_path.read_text(), "html.parser")
 
-    # New unified section exists; no separate aired/unprocessed sections
+    # New unified section exists; no separate aired/unprocessed/clusters sections
     assert soup.find(id="all-questions") is not None
-    assert soup.find(id="clusters") is not None
+    assert soup.find(id="clusters") is None
     assert soup.find(id="unprocessed") is None
 
     # Both aired and processed items appear in the unified table
@@ -135,14 +135,14 @@ def test_no_external_urls(tmp_path):
     assert len(external) == 0, f"Found external URLs: {external}"
 
 
-def test_clusters_section_present(tmp_path):
+def test_cluster_data_on_rows(tmp_path):
+    """Items with identical embeddings get data-cluster attributes for JS grouping."""
     from dein_zeugs.config import Config
     from dein_zeugs.paths import ProjectPaths
     from dein_zeugs.report import render_report
 
     root = make_fixture_root(tmp_path)
 
-    # Two items with identical embeddings — should cluster together
     emb = [1.0] + [0.0] * 383
     for stem in ["q_a", "q_b"]:
         (root / "inbox" / f"{stem}.mp3").touch()
@@ -161,13 +161,17 @@ def test_clusters_section_present(tmp_path):
     report_path = render_report(paths, config)
 
     soup = BeautifulSoup(report_path.read_text(), "html.parser")
-    clusters_section = str(soup.find(id="clusters"))
-    assert "q_a" in clusters_section
-    assert "q_b" in clusters_section
+    assert soup.find(id="clusters") is None
+
+    row_a = soup.find("tr", attrs={"data-stem": "q_a"})
+    row_b = soup.find("tr", attrs={"data-stem": "q_b"})
+    assert row_a and row_a.get("data-cluster"), "q_a missing data-cluster"
+    assert row_b and row_b.get("data-cluster"), "q_b missing data-cluster"
+    assert row_a.get("data-cluster") == row_b.get("data-cluster"), "q_a and q_b not in same cluster"
 
 
-def test_clusters_have_names(tmp_path):
-    """Each multi-item cluster shows a derived name, not just a raw stem."""
+def test_cluster_names_injected(tmp_path):
+    """CLUSTER_NAMES JS variable contains derived names for clustered items."""
     from dein_zeugs.config import Config
     from dein_zeugs.paths import ProjectPaths
     from dein_zeugs.report import render_report
@@ -192,9 +196,9 @@ def test_clusters_have_names(tmp_path):
     report_path = render_report(paths, config)
     html = report_path.read_text()
 
-    clusters_html = html[html.index('id="clusters"'):]
-    # Cluster name should be derived from shared keywords
-    assert "sport" in clusters_html.lower()
+    # Cluster names are injected as JS variable for the grouping feature
+    assert "CLUSTER_NAMES" in html
+    assert "sport" in html.lower()
 
 
 def test_processed_sorted_by_novelty_desc(tmp_path):
@@ -366,35 +370,34 @@ def test_no_repeats_section(tmp_path):
     assert 'id="repeats"' not in html
 
 
-def test_new_only_clusters(tmp_path):
-    """Clusters with all-unaired members appear under 'Neue Cluster'."""
+def test_new_cluster_data_attributes(tmp_path):
+    """Unaired items with identical embeddings share a data-cluster attribute."""
     from dein_zeugs.config import Config
     from dein_zeugs.paths import ProjectPaths
     from dein_zeugs.report import render_report
 
     root = make_fixture_root(tmp_path)
 
-    # Two unaired items with identical embeddings — new-only cluster
     emb = [1.0] + [0.0] * 383
     for stem in ["new_q1", "new_q2"]:
         (root / "inbox" / f"{stem}.mp3").touch()
-        (root / "analysis" / f"{stem}.yaml").write_text(
-            _yaml_item(stem, emb=emb)
-        )
+        (root / "analysis" / f"{stem}.yaml").write_text(_yaml_item(stem, emb=emb))
 
     config = Config()
     paths = ProjectPaths(root)
     report_path = render_report(paths, config)
-    html = report_path.read_text()
 
-    clusters_html = html[html.index('id="clusters"'):]
-    assert "Neue Cluster" in clusters_html
-    assert "new_q1" in clusters_html
-    assert "new_q2" in clusters_html
+    soup = BeautifulSoup(report_path.read_text(), "html.parser")
+    assert soup.find(id="clusters") is None
+
+    rows = {s: soup.find("tr", attrs={"data-stem": s}) for s in ["new_q1", "new_q2"]}
+    assert all(r is not None for r in rows.values())
+    cids = {r.get("data-cluster") for r in rows.values()}
+    assert len(cids) == 1 and None not in cids, "new_q1 and new_q2 should share a cluster id"
 
 
-def test_mixed_clusters(tmp_path):
-    """Clusters spanning aired + unaired appear under 'Gemischte Cluster'."""
+def test_mixed_cluster_data_attributes(tmp_path):
+    """Aired and unaired items with the same embedding share a data-cluster attribute."""
     from dein_zeugs.config import Config
     from dein_zeugs.paths import ProjectPaths
     from dein_zeugs.report import render_report
@@ -403,20 +406,20 @@ def test_mixed_clusters(tmp_path):
 
     emb = [1.0] + [0.0] * 383
 
-    # One aired item
     (root / "aired" / "aired_q.mp3").touch()
     (root / "analysis" / "aired_q.yaml").write_text(_yaml_item("aired_q", emb=emb))
 
-    # One unaired item with identical embedding
     (root / "inbox" / "new_q.mp3").touch()
     (root / "analysis" / "new_q.yaml").write_text(_yaml_item("new_q", emb=emb))
 
     config = Config()
     paths = ProjectPaths(root)
     report_path = render_report(paths, config)
-    html = report_path.read_text()
 
-    clusters_html = html[html.index('id="clusters"'):]
-    assert "Gemischte Cluster" in clusters_html
-    assert "aired_q" in clusters_html
-    assert "new_q" in clusters_html
+    soup = BeautifulSoup(report_path.read_text(), "html.parser")
+    assert soup.find(id="clusters") is None
+
+    rows = {s: soup.find("tr", attrs={"data-stem": s}) for s in ["aired_q", "new_q"]}
+    assert all(r is not None for r in rows.values())
+    cids = {r.get("data-cluster") for r in rows.values()}
+    assert len(cids) == 1 and None not in cids, "aired_q and new_q should share a cluster id"
