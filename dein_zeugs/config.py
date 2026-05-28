@@ -6,7 +6,7 @@ from dein_zeugs.models import default_llm_path
 
 _DEFAULT_TOML = """\
 [analysis]
-similarity_threshold = 0.80
+similarity_threshold = 0.60
 """
 
 
