@@ -11,7 +11,7 @@ from dein_zeugs import __version__
 log = logging.getLogger("dein_zeugs")
 
 SUMMARY_PROMPT = ("""\
-Du fasst Transkripte von Kinderfragen an einen Podcast in einem einzigen deutschen Satz zusammen. Nenne dabei, wer fragt (Name, Alter, Herkunft – falls angegeben) und was gefragt oder gewünscht wird.
+Du fasst Transkripte von Kinderfragen an einen Podcast in einem einzigen deutschen Satz zusammen. Nenne dabei, wer fragt (Name, Alter, Herkunft – nur falls angegeben) und was gefragt oder gewünscht wird.
 
 Transkript: Hallo, ich bin Felix, ich bin acht Jahre alt und komme aus München. Meine Frage ist, mögt ihr lieber Pizza oder Pasta? Tschüss!
 Zusammenfassung: Felix (8, München) fragt, ob Pizza oder Pasta bevorzugt wird.
