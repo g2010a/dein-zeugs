@@ -224,28 +224,9 @@ def _run_orchestrate(argv: list[str]) -> int:
         "root", nargs="?",
         help="Wurzelverzeichnis des Projekts (Standard: ~/DeinZeugs). Wird inklusive Unterverzeichnissen automatisch angelegt.",
     )
-    parser.add_argument("--warm-models", action="store_true", help="Modell-Cache vorab aufwärmen und dann beenden")
-    parser.add_argument("--skip-llm", action="store_true", help="Beim Aufwärmen das LLM-Modell überspringen (nur mit --warm-models sinnvoll)")
-    parser.add_argument("--clean-downloads", action="store_true", help="Heruntergeladene Modelldateien löschen und dann beenden")
-    parser.add_argument("--clean-outputs", action="store_true", help="Ausgabeverzeichnisse leeren (analysis, reports), inbox/ bleibt erhalten")
-    parser.add_argument("--yes", "-y", action="store_true", help="Bestätigungsabfrage überspringen")
     args = parser.parse_args(argv)
 
-    if args.warm_models or args.clean_downloads:
-        config = _load_config_optional(args.root)
-        if args.warm_models:
-            _warm_models(log, config, skip_llm=args.skip_llm)
-        else:
-            clean_downloads(config, yes=args.yes)
-        return 0
-
     root = _resolve_root(args.root)
-
-    if args.clean_outputs:
-        config = _load_config_optional(str(root))
-        paths = ProjectPaths(root, analysis_dir=config.analysis_dir, reports_dir=config.reports_dir)
-        clean_outputs(paths, yes=args.yes)
-        return 0
 
     try:
         root.mkdir(parents=True, exist_ok=True)

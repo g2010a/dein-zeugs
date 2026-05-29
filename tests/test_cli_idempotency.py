@@ -134,25 +134,6 @@ def test_cli_empty_inbox_renders_getting_started(tmp_path):
         assert "inbox" in content
 
 
-def test_cli_warm_models_exits_early(tmp_path):
-    """--warm-models flag returns 0 without requiring root."""
-    with patch("dein_zeugs.cli._warm_models") as mock_warm:
-        from dein_zeugs.cli import main
-        result = main(["--warm-models"])
-        assert result == 0
-        mock_warm.assert_called_once()
-
-
-def test_cli_warm_models_skip_llm(tmp_path):
-    """--warm-models --skip-llm passes skip_llm=True."""
-    with patch("dein_zeugs.cli._warm_models") as mock_warm:
-        from dein_zeugs.cli import main
-        result = main(["--warm-models", "--skip-llm"])
-        assert result == 0
-        _, kwargs = mock_warm.call_args
-        assert kwargs.get("skip_llm") is True
-
-
 def test_cli_default_root_uses_home_dein_zeugs(tmp_path, monkeypatch):
     """Calling main with no root defaults to ~/DeinZeugs and auto-creates the tree."""
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -230,19 +211,6 @@ def test_cli_exception_returns_1(tmp_path):
         from dein_zeugs.cli import main
         result = main([str(root)])
         assert result == 1
-
-
-def test_cli_clean_downloads_flag():
-    """--clean-downloads calls clean_downloads with a Config and returns 0."""
-    with patch("dein_zeugs.cli.clean_downloads") as mock_clean:
-        from dein_zeugs.cli import main
-        result = main(["--clean-downloads"])
-        assert result == 0
-        mock_clean.assert_called_once()
-        args, kwargs = mock_clean.call_args
-        from dein_zeugs.config import Config
-        assert isinstance(args[0], Config)
-        assert kwargs.get("yes", False) is False
 
 
 def test_cli_no_inbox_exits_0_without_model_download(tmp_path):
