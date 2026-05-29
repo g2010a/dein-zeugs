@@ -1,6 +1,23 @@
 # CHANGELOG
 
 
+## v0.2.0 (2026-05-29)
+
+### Features
+
+- **report**: Dos-style UI overhaul with ASCII banner and merged stem column
+  ([`91e2540`](https://github.com/g2010a/dein-zeugs/commit/91e2540b93a379f8270df0f42da114eb0694c1bc))
+
+- Replace sticky nav bar with ASCII art "DEIN ZEUGS" banner (10px monospace, bright yellow on dark
+  navy, full-width centered) - Retheme entire CSS to 90s DOS palette: #000080 body, #0000AA headers,
+  #00AAAA cyan borders, #FFFF55 yellow headings, #FF55FF magenta actives, #55FFFF cyan links,
+  monospace font throughout; sharp square corners - Remove dedicated Stem column from table header;
+  render filename/stem as .cell-stem block element inside Zusammenfassung cell (11px, de-emphasized
+  #7777AA), chip-aired badge stays inline before stem for aired rows
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+
 ## v0.1.0 (2026-05-29)
 
 ### Bug Fixes

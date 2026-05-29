@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dein-zeugs"
-version = "0.1.0"
+version = "0.2.0"
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "faster-whisper>=1.0",
@@ -20,6 +20,7 @@ dev = ["pytest>=7", "pytest-cov"]
 
 [project.scripts]
 dein-zeugs = "dein_zeugs.cli:main"
+
 
 
 [tool.setuptools.packages.find]
