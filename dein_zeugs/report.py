@@ -112,24 +112,33 @@ def render_report(paths: ProjectPaths, config) -> Path:
     for item in processed_items + aired_items:
         items_by_stem[item["stem"]] = item
 
-    # 4. Clusters — reload with embeddings
+    # 4. Clusters — use stored cluster_id when available, otherwise compute from embeddings
     processed_with_emb = []
-    for yaml_file in paths.analysis.glob("*.yaml"):
+    for yaml_file in sorted(paths.analysis.glob("*.yaml")):
         try:
             d = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
-            if "embedding" in d:
+            if d and "embedding" in d:
                 processed_with_emb.append(d)
         except Exception:
             continue
-    clusters = build_clusters(processed_with_emb, config.similarity_threshold)
+
+    if any("cluster_id" in d for d in processed_with_emb):
+        cluster_groups: dict[str, list[str]] = {}
+        for d in processed_with_emb:
+            cid = d.get("cluster_id")
+            if cid:
+                cluster_groups.setdefault(cid, []).append(d["stem"])
+        cluster_pairs: list[tuple[str, list[str]]] = [
+            (cid, stems) for cid, stems in cluster_groups.items() if len(stems) > 1
+        ]
+    else:
+        raw = build_clusters(processed_with_emb, config.similarity_threshold)
+        cluster_pairs = [(f"cluster_{i}", c) for i, c in enumerate(raw) if len(c) > 1]
 
     # Generate named cluster objects and stem→cluster mapping
     named_clusters = []
     stem_to_cluster_id: dict[str, str] = {}
-    for i, cluster in enumerate(clusters):
-        if len(cluster) <= 1:
-            continue
-        cid = f"cluster_{i}"
+    for cid, cluster in cluster_pairs:
         name = _derive_cluster_name(cluster, items_by_stem)
         is_mixed = any(stem in aired_stems for stem in cluster)
         named_clusters.append({

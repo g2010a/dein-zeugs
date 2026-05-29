@@ -260,6 +260,64 @@ def _analyze_one(
     return emb
 
 
+def cluster_all(paths: ProjectPaths, config) -> int:
+    """Compute cluster assignments from transcript embeddings and write cluster_id to each YAML.
+
+    Uses the transcript embedding (not summary or keywords): it is LLM-free,
+    already computed, and carries the full semantic signal without abstraction errors.
+    """
+    from dein_zeugs.clustering import build_clusters
+
+    if not paths.analysis.exists():
+        return 0
+
+    items: list[dict] = []
+    yaml_paths: dict[str, Path] = {}
+    for yaml_file in sorted(paths.analysis.glob("*.yaml")):
+        try:
+            data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not data or "embedding" not in data:
+            continue
+        stem = data.get("stem") or normalize_stem(yaml_file.stem)
+        items.append({"stem": stem, "embedding": data["embedding"]})
+        yaml_paths[stem] = yaml_file
+
+    if not items:
+        return 0
+
+    clusters = build_clusters(items, config.similarity_threshold)
+
+    stem_to_cid: dict[str, str] = {}
+    for i, cluster in enumerate(clusters):
+        if len(cluster) > 1:
+            for stem in cluster:
+                stem_to_cid[stem] = f"cluster_{i}"
+
+    for stem, yaml_file in yaml_paths.items():
+        try:
+            data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not data:
+            continue
+        new_cid = stem_to_cid.get(stem)
+        if data.get("cluster_id") == new_cid:
+            continue
+        if new_cid is None:
+            data.pop("cluster_id", None)
+        else:
+            data["cluster_id"] = new_cid
+        yaml_bytes = yaml.dump(
+            data, allow_unicode=True, default_flow_style=False, sort_keys=False
+        ).encode("utf-8")
+        atomic_write(yaml_file, yaml_bytes)
+        log.info(f"Cluster-ID gesetzt: {stem} → {new_cid}")
+
+    return len(items)
+
+
 def transcribe_all(paths: ProjectPaths, config, force: bool = False) -> int:
     from dein_zeugs.transcription import WhisperTranscriber
     transcriber = WhisperTranscriber(model_name=config.whisper_model)

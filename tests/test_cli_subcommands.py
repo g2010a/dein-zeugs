@@ -127,6 +127,99 @@ def test_analyze_force_flag(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# cluster
+# ---------------------------------------------------------------------------
+
+def test_cluster_calls_cluster_all_and_render(tmp_path):
+    root = _make_root(tmp_path)
+    with patch("dein_zeugs.cli.cluster_all", return_value=2) as mock_c, \
+         patch("dein_zeugs.cli.render_report") as mock_r:
+        from dein_zeugs.cli import main
+        result = main(["cluster", str(root)])
+    assert result == 0
+    mock_c.assert_called_once()
+    mock_r.assert_called_once()
+
+
+def test_cluster_all_writes_cluster_ids(tmp_path):
+    import yaml
+    root = _make_root(tmp_path)
+
+    # Two very similar embeddings and one orthogonal
+    A = [1.0, 0.0, 0.0]
+    B = [0.9, 0.43589, 0.0]   # cosine sim ≈ 0.9 with A → merge at threshold 0.80
+    C = [0.0, 0.0, 1.0]
+
+    for stem, emb in [("ep_a", A), ("ep_b", B), ("ep_c", C)]:
+        (root / "analysis" / f"{stem}.yaml").write_text(
+            yaml.dump({"stem": stem, "transcript": "x", "embedding": emb}, allow_unicode=True)
+        )
+
+    from dein_zeugs.analysis import cluster_all
+    from dein_zeugs.config import Config
+    from dein_zeugs.paths import ProjectPaths
+    config = Config(similarity_threshold=0.80)
+    paths = ProjectPaths(root)
+    count = cluster_all(paths, config)
+
+    assert count == 3
+
+    data_a = yaml.safe_load((root / "analysis" / "ep_a.yaml").read_text())
+    data_b = yaml.safe_load((root / "analysis" / "ep_b.yaml").read_text())
+    data_c = yaml.safe_load((root / "analysis" / "ep_c.yaml").read_text())
+
+    # A and B should share a cluster_id; C should have none
+    assert data_a.get("cluster_id") is not None
+    assert data_a["cluster_id"] == data_b["cluster_id"]
+    assert "cluster_id" not in data_c
+
+
+def test_cluster_all_idempotent(tmp_path):
+    import yaml
+    root = _make_root(tmp_path)
+    A = [1.0, 0.0, 0.0]
+    B = [0.9, 0.43589, 0.0]
+    for stem, emb in [("ep_a", A), ("ep_b", B)]:
+        (root / "analysis" / f"{stem}.yaml").write_text(
+            yaml.dump({"stem": stem, "transcript": "x", "embedding": emb})
+        )
+
+    from dein_zeugs.analysis import cluster_all
+    from dein_zeugs.config import Config
+    from dein_zeugs.paths import ProjectPaths
+    config = Config(similarity_threshold=0.80)
+    paths = ProjectPaths(root)
+    cluster_all(paths, config)
+    cid_first = yaml.safe_load((root / "analysis" / "ep_a.yaml").read_text()).get("cluster_id")
+    cluster_all(paths, config)
+    cid_second = yaml.safe_load((root / "analysis" / "ep_a.yaml").read_text()).get("cluster_id")
+    assert cid_first == cid_second
+
+
+def test_cluster_all_clears_stale_id_when_threshold_raises(tmp_path):
+    """If threshold rises and items no longer cluster, cluster_id is removed."""
+    import yaml
+    root = _make_root(tmp_path)
+    A = [1.0, 0.0, 0.0]
+    B = [0.9, 0.43589, 0.0]
+    for stem, emb in [("ep_a", A), ("ep_b", B)]:
+        (root / "analysis" / f"{stem}.yaml").write_text(
+            yaml.dump({"stem": stem, "transcript": "x", "embedding": emb})
+        )
+
+    from dein_zeugs.analysis import cluster_all
+    from dein_zeugs.config import Config
+    from dein_zeugs.paths import ProjectPaths
+    paths = ProjectPaths(root)
+
+    cluster_all(paths, Config(similarity_threshold=0.80))
+    assert yaml.safe_load((root / "analysis" / "ep_a.yaml").read_text()).get("cluster_id")
+
+    cluster_all(paths, Config(similarity_threshold=0.95))
+    assert "cluster_id" not in yaml.safe_load((root / "analysis" / "ep_a.yaml").read_text())
+
+
+# ---------------------------------------------------------------------------
 # report
 # ---------------------------------------------------------------------------
 

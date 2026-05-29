@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dein_zeugs.config import Config
 from dein_zeugs.paths import ProjectPaths, unprocessed_aired_audio
-from dein_zeugs.analysis import process_all_unprocessed, transcribe_all, analyze_all
+from dein_zeugs.analysis import process_all_unprocessed, transcribe_all, analyze_all, cluster_all
 from dein_zeugs.embedding import EmbeddingModel
 from dein_zeugs.models import ensure_llm_model, ensure_whisper_model, patch_tqdm, clean_downloads, clean_outputs
 from dein_zeugs.report import render_report
@@ -17,6 +17,7 @@ _SUBCOMMANDS = frozenset({
     "fetch-models",
     "transcribe",
     "analyze",
+    "cluster",
     "report",
     "delete-downloads",
     "delete-outputs",
@@ -147,6 +148,23 @@ def _cmd_analyze(argv: list[str]) -> int:
     return 0
 
 
+def _cmd_cluster(argv: list[str]) -> int:
+    import argparse
+    p = argparse.ArgumentParser(
+        prog="dein-zeugs cluster",
+        description="Clustering neu berechnen und Bericht aktualisieren.",
+    )
+    p.add_argument("root", nargs="?", help="Wurzelverzeichnis (Standard: ~/DeinZeugs)")
+    args = p.parse_args(argv)
+
+    _root, config, paths = _bootstrap(args.root)
+    count = cluster_all(paths, config)
+    print(f"Gruppiert: {count} Datei(en)")
+    render_report(paths, config)
+    _open_report(paths.reports / "report.html")
+    return 0
+
+
 def _cmd_report(argv: list[str]) -> int:
     import argparse
     p = argparse.ArgumentParser(
@@ -215,6 +233,7 @@ def _run_orchestrate(argv: list[str]) -> int:
             "  fetch-models        Modelle herunterladen\n"
             "  transcribe          Audiodateien transkribieren\n"
             "  analyze             Transkripte analysieren\n"
+            "  cluster             Clustering neu berechnen und Bericht aktualisieren\n"
             "  report              HTML-Bericht erstellen\n"
             "  delete-downloads    Modelldateien löschen\n"
             "  delete-outputs      Ausgabeverzeichnisse leeren"
@@ -260,6 +279,7 @@ def _run_orchestrate(argv: list[str]) -> int:
                 if processed == 0:
                     break
 
+            cluster_all(paths, config)
             render_report(paths, config)
             _open_report(paths.reports / "report.html")
             return 0
@@ -290,6 +310,7 @@ def main(argv=None):
             "fetch-models": _cmd_fetch_models,
             "transcribe": _cmd_transcribe,
             "analyze": _cmd_analyze,
+            "cluster": _cmd_cluster,
             "report": _cmd_report,
             "delete-downloads": _cmd_delete_downloads,
             "delete-outputs": _cmd_delete_outputs,
