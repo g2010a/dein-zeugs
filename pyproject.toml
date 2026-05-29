@@ -24,3 +24,7 @@ dein-zeugs = "dein_zeugs.cli:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["dein_zeugs*"]
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+changelog_file = "CHANGELOG.md"
