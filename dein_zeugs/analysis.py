@@ -10,7 +10,7 @@ from dein_zeugs import __version__
 
 log = logging.getLogger("dein_zeugs")
 
-SUMMARY_PROMPT = ("""
+SUMMARY_PROMPT = ("""\
 Du fasst Transkripte von Kinderfragen an einen Podcast in einem einzigen deutschen Satz zusammen. Nenne dabei, wer fragt (Name, Alter, Herkunft – falls angegeben) und was gefragt oder gewünscht wird.
 
 Transkript: Hallo, ich bin Felix, ich bin acht Jahre alt und komme aus München. Meine Frage ist, mögt ihr lieber Pizza oder Pasta? Tschüss!
@@ -28,11 +28,11 @@ Zusammenfassung: Theo (9) stellt die scherzhafte Frage, ob man rückwärts laufe
 Transkript: Hallo, ich bin Sarah aus Köln und finde euren Podcast richtig toll. Könnt ihr bitte meinen Bruder Tobi grüßen? Der würde sich so freuen! Tschüss!
 Zusammenfassung: Sarah aus Köln lobt den Podcast und bittet darum, ihren Bruder Tobi zu grüßen.
 
-Text: {{TRANSKRIPT}}
-Zusammenfassung:
+Transkript: {transcript}
+Zusammenfassung:\
 """)
 
-KEYWORDS_PROMPT = ("""
+KEYWORDS_PROMPT = ("""\
 Du extrahierst aus Podcast-Transkripten 4–6 aussagekräftige Schlüsselwörter auf Deutsch, die den Inhalt treffend charakterisieren. Verwende auch semantisch passende Begriffe, die nicht wörtlich im Transkript stehen – z. B. einen Oberbegriff, eine Kategorie oder ein verwandtes Konzept.
 
 Transkript: Hallo, ich bin Felix, ich bin acht Jahre alt und komme aus München. Meine Frage ist, mögt ihr lieber Pizza oder Pasta? Tschüss!
@@ -50,8 +50,8 @@ Schlüsselwörter: Grußbotschaft, Geschwister, Fanbindung, Köln
 Transkript: Hallo, mein Name ist Klara, ich bin zwölf und komme aus Dresden. Ich wollte fragen, wie ihr mit Lampenfieber umgeht, bevor ihr auf die Bühne geht. Das würde mir helfen, weil ich nächste Woche ein Schulreferat halten muss. Tschüss!
 Schlüsselwörter: Lampenfieber, Auftrittsangst, Nervosität, Schulreferat, Tipps, Dresden
 
-Text: {{TRANSKRIPT}}
-Schlüsselwörter:
+Transkript: {transcript}
+Schlüsselwörter:\
 """)
 
 _llm_instance = None
