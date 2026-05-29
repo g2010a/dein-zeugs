@@ -442,7 +442,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ── 8. Pagination ────────────────────────────────────────────────
   var currentPage = 1;
-  var pageSize = 25;
+  var pageSize = 100;
 
   var pageSizeEl = document.getElementById('page-size');
   if (pageSizeEl) {
