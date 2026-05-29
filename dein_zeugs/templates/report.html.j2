@@ -11,9 +11,14 @@
   <style>{{ css | safe }}</style>
 </head>
 <body>
-  <nav class="sticky-nav">
-    <a href="#all-questions">Alle Fragen (<span id="nav-all-count">{{ (processed|length) + (aired|length) }}</span>)</a>
-  </nav>
+  <div class="ascii-banner">
+    <pre class="ascii-art">&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2557; &#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2557;&#x2588;&#x2588;&#x2557;&#x2588;&#x2588;&#x2588;&#x2557;   &#x2588;&#x2588;&#x2557;    &#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2557;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2557;&#x2588;&#x2588;&#x2557;   &#x2588;&#x2588;&#x2557; &#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2557; &#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2557;
+&#x2588;&#x2588;&#x2554;&#x2550;&#x2550;&#x2588;&#x2588;&#x2557;&#x2588;&#x2588;&#x2554;&#x2550;&#x2550;&#x2550;&#x2550;&#x255D;&#x2588;&#x2588;&#x2551;&#x2588;&#x2588;&#x2588;&#x2588;&#x2557;  &#x2588;&#x2588;&#x2551;    &#x2554;&#x2550;&#x2550;&#x2588;&#x2588;&#x2588;&#x2554;&#x255D;&#x2588;&#x2588;&#x2554;&#x2550;&#x2550;&#x2550;&#x2550;&#x255D;&#x2588;&#x2588;&#x2551;   &#x2588;&#x2588;&#x2551;&#x2588;&#x2588;&#x2554;&#x2550;&#x2550;&#x2550;&#x2550;&#x255D; &#x2588;&#x2588;&#x2554;&#x2550;&#x2550;&#x2550;&#x2550;&#x255D;
+&#x2588;&#x2588;&#x2551;  &#x2588;&#x2588;&#x2551;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2557;  &#x2588;&#x2588;&#x2551;&#x2588;&#x2588;&#x2554;&#x2588;&#x2588;&#x2557; &#x2588;&#x2588;&#x2551;      &#x2588;&#x2588;&#x2588;&#x2554;&#x255D; &#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2557;  &#x2588;&#x2588;&#x2551;   &#x2588;&#x2588;&#x2551;&#x2588;&#x2588;&#x2551;  &#x2588;&#x2588;&#x2588;&#x2557;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2557;
+&#x2588;&#x2588;&#x2551;  &#x2588;&#x2588;&#x2551;&#x2588;&#x2588;&#x2554;&#x2550;&#x2550;&#x255D;  &#x2588;&#x2588;&#x2551;&#x2588;&#x2588;&#x2551;&#x255A;&#x2588;&#x2588;&#x2557;&#x2588;&#x2588;&#x2551;     &#x2588;&#x2588;&#x2588;&#x2554;&#x255D;  &#x2588;&#x2588;&#x2554;&#x2550;&#x2550;&#x255D;  &#x2588;&#x2588;&#x2551;   &#x2588;&#x2588;&#x2551;&#x2588;&#x2588;&#x2551;   &#x2588;&#x2588;&#x2551;&#x255A;&#x2550;&#x2550;&#x2550;&#x2550;&#x2588;&#x2588;&#x2557;
+&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2554;&#x255D;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2557;&#x2588;&#x2588;&#x2551;&#x2588;&#x2588;&#x2551; &#x255A;&#x2588;&#x2588;&#x2588;&#x2588;&#x2551;    &#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2557;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2557;&#x255A;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2554;&#x255D;&#x255A;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2554;&#x255D;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2551;
+&#x255A;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x255D; &#x255A;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x255D;&#x255A;&#x2550;&#x255D;&#x255A;&#x2550;&#x255D;  &#x255A;&#x2550;&#x2550;&#x2550;&#x255D;    &#x255A;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x255D;&#x255A;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x255D; &#x255A;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x255D;  &#x255A;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x255D; &#x255A;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x255D;</pre>
+  </div>
 
   <div class="filter-bar">
     <input type="search" id="q" placeholder="&#x1F50D; Suchen&#x2026; (Taste /)" autocomplete="off">
@@ -58,7 +63,6 @@
       <table id="all-questions-table">
         <thead>
           <tr>
-            <th data-sort="stem">Stem <span class="sort-icon"></span></th>
             <th>Zusammenfassung</th>
             <th>Transkript</th>
             <th>Schlagw&#246;rter</th>
@@ -79,8 +83,7 @@
               data-section="processed"
               {% if item.cluster_id %}data-cluster="{{ item.cluster_id }}"{% endif %}
               {% if item.llm_error %}data-error="1"{% endif %}>
-            <td class="stem">{{ item.stem }}</td>
-            <td>{{ item.summary }}</td>
+            <td><span class="cell-stem">{{ item.stem }}</span>{{ item.summary }}</td>
             <td>{{ transcript_block(item.transcript) }}</td>
             <td>{% for kw in item.keywords %}<span class="chip chip-kw" data-kw="{{ kw | lower }}">{{ kw }}</span> {% endfor %}</td>
             <td class="date-cell">{{ item.first_seen[:10] if item.first_seen else "&#x2014;" }}{% if item.analyzed_at and item.analyzed_at[:10] != item.first_seen[:10] %}<span class="date-secondary">&#x21BB;&nbsp;{{ item.analyzed_at[:10] }}</span>{% endif %}</td>
@@ -99,11 +102,7 @@
               data-section="aired"
               {% if item.cluster_id %}data-cluster="{{ item.cluster_id }}"{% endif %}
               {% if item.llm_error %}data-error="1"{% endif %}>
-            <td class="stem">
-              <span class="chip chip-aired" title="Ausgestrahlt">&#x1F4E1;</span>
-              {{ item.stem }}
-            </td>
-            <td>{{ item.summary }}</td>
+            <td><span class="cell-stem"><span class="chip chip-aired" title="Ausgestrahlt">&#x1F4E1;</span> {{ item.stem }}</span>{{ item.summary }}</td>
             <td>{{ transcript_block(item.transcript) }}</td>
             <td>{% for kw in item.keywords %}<span class="chip chip-kw" data-kw="{{ kw | lower }}">{{ kw }}</span> {% endfor %}</td>
             <td class="date-cell">{{ item.first_seen[:10] if item.first_seen else "&#x2014;" }}{% if item.analyzed_at and item.analyzed_at[:10] != item.first_seen[:10] %}<span class="date-secondary">&#x21BB;&nbsp;{{ item.analyzed_at[:10] }}</span>{% endif %}</td>
