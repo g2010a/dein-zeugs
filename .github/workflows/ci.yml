@@ -21,7 +21,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install --no-deps -e . && pip install pytest pytest-cov pyyaml jinja2 beautifulsoup4 numpy ruff
+        run: pip install -e ".[dev]" ruff
 
       - name: Lint
         run: ruff check

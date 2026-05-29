@@ -58,7 +58,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m venv .venv
-          .venv/bin/pip install -e . pyinstaller
+          .venv/bin/pip install --prefer-binary -e . pyinstaller
 
       - name: Build and sign binary
         run: make package
