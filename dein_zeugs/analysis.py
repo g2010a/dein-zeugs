@@ -227,7 +227,6 @@ def _analyze_one(
         except Exception:
             pass
 
-    # Reuse an existing transcript written by a prior `transcribe` step.
     text = existing.get("transcript") or transcriber.transcribe(mp3)
     first_seen = existing.get("first_seen") or datetime.fromtimestamp(
         mp3.stat().st_mtime, timezone.utc
@@ -262,12 +261,6 @@ def _analyze_one(
 
 
 def transcribe_all(paths: ProjectPaths, config, force: bool = False) -> int:
-    """Transcribe audio and write partial YAMLs containing only the transcript.
-
-    Already-transcribed files are skipped unless *force* is True, in which case
-    the transcript is refreshed and any analysis fields are cleared so a
-    subsequent ``analyze`` step starts from a clean slate.
-    """
     from dein_zeugs.transcription import WhisperTranscriber
     transcriber = WhisperTranscriber(model_name=config.whisper_model)
     paths.analysis.mkdir(parents=True, exist_ok=True)
@@ -320,15 +313,6 @@ def analyze_all(
     embedding_model: EmbeddingModel,
     force: bool = False,
 ) -> int:
-    """Run LLM analysis on every YAML that has a transcript but no embedding yet.
-
-    With *force*, re-analyze all transcribed YAMLs regardless of whether they
-    already have an embedding.
-
-    Aired items are processed before inbox items and their embeddings are
-    progressively added to the reference corpus so that scoring matches the
-    ordering semantics of the default orchestration.
-    """
     if not paths.analysis.exists():
         return 0
 
@@ -336,41 +320,29 @@ def analyze_all(
     aired_embeddings = [(stem, emb) for stem, _text, emb in aired]
     aired_stems = {stem for stem, _text, _emb in aired}
 
-    # Determine which stems correspond to aired files so we can process them
-    # first and grow the reference corpus progressively (matching the ordering
-    # in process_all_unprocessed).
     aired_mp3_stems: set[str] = set()
     if paths.aired.exists():
         aired_mp3_stems = {normalize_stem(p.stem) for p in paths.aired.glob("*.mp3")}
 
-    def _needs_analysis(data: dict) -> bool:
-        return bool(data.get("transcript")) and (force or not data.get("embedding"))
+    # Build candidate list with stem resolved once.
+    candidates: list[tuple[Path, str, dict]] = []
+    for yaml_path in sorted(paths.analysis.glob("*.yaml")):
+        try:
+            data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if data and data.get("transcript") and (force or not data.get("embedding")):
+            candidates.append((yaml_path, data.get("stem") or normalize_stem(yaml_path.stem), data))
 
-    def _load_candidates() -> list[tuple[Path, dict]]:
-        result = []
-        for yaml_path in sorted(paths.analysis.glob("*.yaml")):
-            try:
-                data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
-            except Exception:
-                continue
-            if data and _needs_analysis(data):
-                result.append((yaml_path, data))
-        return result
-
-    def _run_one(yaml_path: Path, data: dict) -> np.ndarray:
-        stem = data.get("stem") or normalize_stem(yaml_path.stem)
+    def _run_one(yaml_path: Path, stem: str, data: dict) -> np.ndarray:
         text = data["transcript"]
         log.info(f"Analyse: {stem}")
-
         emb = embedding_model.embed(text)
         sim, nov, nearest = score(emb, aired_embeddings)
-        summary_text = summarize(text, config.llm_model_path)
-        kws = keywords(text, config.llm_model_path)
-
         data.update({
             "stem": stem,
-            "summary": summary_text,
-            "keywords": kws,
+            "summary": summarize(text, config.llm_model_path),
+            "keywords": keywords(text, config.llm_model_path),
             "similarity_score": sim,
             "novelty_score": nov,
             "nearest_aired_stem": nearest,
@@ -382,7 +354,6 @@ def analyze_all(
         llm_err = get_llm_error()
         if llm_err:
             data["llm_error"] = llm_err
-
         yaml_bytes = yaml.dump(
             data, allow_unicode=True, default_flow_style=False, sort_keys=False
         ).encode("utf-8")
@@ -390,24 +361,19 @@ def analyze_all(
         return emb
 
     count = 0
-    candidates = _load_candidates()
-
-    # Pass 1: aired items — each expands the reference corpus for later items.
-    for yaml_path, data in candidates:
-        stem = data.get("stem") or normalize_stem(yaml_path.stem)
+    # Aired first: each embedding is added to the corpus before inbox items are scored.
+    for yaml_path, stem, data in candidates:
         if stem not in aired_mp3_stems:
             continue
-        emb = _run_one(yaml_path, data)
+        emb = _run_one(yaml_path, stem, data)
         aired_embeddings.append((stem, emb))
         aired_stems.add(stem)
         count += 1
 
-    # Pass 2: inbox items — scored against the now-complete aired corpus.
-    for yaml_path, data in candidates:
-        stem = data.get("stem") or normalize_stem(yaml_path.stem)
+    for yaml_path, stem, data in candidates:
         if stem in aired_mp3_stems:
             continue
-        _run_one(yaml_path, data)
+        _run_one(yaml_path, stem, data)
         count += 1
 
     compute_intra_batch_scores(paths, aired_stems)
@@ -419,11 +385,6 @@ def process_all_unprocessed(
     config,
     embedding_model: EmbeddingModel,
 ) -> int:
-    """Transcribe and analyse every audio file that is not yet fully processed.
-
-    Picks up both completely unprocessed files (no YAML) and files that were
-    transcribed separately but not yet analysed (YAML present, no embedding).
-    """
     from dein_zeugs.transcription import WhisperTranscriber
     transcriber = WhisperTranscriber(model_name=config.whisper_model)
 

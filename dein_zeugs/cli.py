@@ -77,9 +77,6 @@ def _bootstrap(root_arg: str | None) -> tuple[Path, Config, ProjectPaths]:
     return root, config, paths
 
 
-# ---------------------------------------------------------------------------
-# Subcommand handlers
-# ---------------------------------------------------------------------------
 
 def _cmd_initialize(argv: list[str]) -> int:
     import argparse
@@ -195,9 +192,6 @@ def _cmd_delete_outputs(argv: list[str]) -> int:
     return 0
 
 
-# ---------------------------------------------------------------------------
-# Default orchestration (no subcommand)
-# ---------------------------------------------------------------------------
 
 def _run_orchestrate(argv: list[str]) -> int:
     import argparse
@@ -302,9 +296,6 @@ def _run_orchestrate(argv: list[str]) -> int:
         return 1
 
 
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
 
 def main(argv=None):
     _reconfigure_streams()
