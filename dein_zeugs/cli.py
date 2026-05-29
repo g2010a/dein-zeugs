@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dein_zeugs.config import Config
 from dein_zeugs.paths import ProjectPaths, unprocessed_aired_audio
-from dein_zeugs.analysis import process_all_unprocessed
+from dein_zeugs.analysis import process_all_unprocessed, transcribe_all, analyze_all
 from dein_zeugs.embedding import EmbeddingModel
 from dein_zeugs.models import ensure_llm_model, ensure_whisper_model, patch_tqdm, clean_downloads, clean_outputs
 from dein_zeugs.report import render_report
@@ -131,7 +131,6 @@ def _cmd_transcribe(argv: list[str]) -> int:
     paths = _setup_paths(root, config)
     paths.analysis.mkdir(parents=True, exist_ok=True)
 
-    from dein_zeugs.analysis import transcribe_all
     count = transcribe_all(paths, config, force=args.force)
     print(f"Transkribiert: {count} Datei(en)")
     return 0
@@ -155,7 +154,6 @@ def _cmd_analyze(argv: list[str]) -> int:
     ensure_llm_model(config.llm_model_path)
     embedding_model = EmbeddingModel(config.embedding_model)
 
-    from dein_zeugs.analysis import analyze_all
     count = analyze_all(paths, config, embedding_model, force=args.force)
     print(f"Analysiert: {count} Datei(en)")
     return 0
