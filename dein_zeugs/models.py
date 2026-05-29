@@ -61,8 +61,6 @@ def ensure_llm_model(model_path: str, force: bool = False) -> str:
     path = Path(model_path)
     if path.exists() and not force:
         return str(path)
-    if path.exists() and force:
-        path.unlink()
     path.parent.mkdir(parents=True, exist_ok=True)
     log.info(f"Downloading LLM model to {path} (~2 GB, one-time)...")
 

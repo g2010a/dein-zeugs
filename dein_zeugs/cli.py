@@ -57,8 +57,8 @@ def _load_config_optional(root_arg: str | None) -> Config:
     if root_arg:
         try:
             return Config.load_or_create(Path(root_arg).resolve())
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warnung: Konfiguration konnte nicht geladen werden, verwende Standardwerte: {e}", file=sys.stderr)
     return Config()
 
 
@@ -68,10 +68,13 @@ def _resolve_root(root_arg: str | None) -> Path:
     return (Path.home() / "DeinZeugs").resolve()
 
 
-def _setup_paths(root: Path, config: Config) -> ProjectPaths:
+def _bootstrap(root_arg: str | None) -> tuple[Path, Config, ProjectPaths]:
+    """Resolve root, load config, and build ProjectPaths. Shared by subcommand handlers."""
+    root = _resolve_root(root_arg)
     root.mkdir(parents=True, exist_ok=True)
+    config = Config.load_or_create(root)
     paths = ProjectPaths(root, analysis_dir=config.analysis_dir, reports_dir=config.reports_dir)
-    return paths
+    return root, config, paths
 
 
 # ---------------------------------------------------------------------------
@@ -87,10 +90,7 @@ def _cmd_initialize(argv: list[str]) -> int:
     p.add_argument("root", nargs="?", help="Wurzelverzeichnis (Standard: ~/DeinZeugs)")
     args = p.parse_args(argv)
 
-    root = _resolve_root(args.root)
-    root.mkdir(parents=True, exist_ok=True)
-    config = Config.load_or_create(root)
-    paths = _setup_paths(root, config)
+    root, config, paths = _bootstrap(args.root)
     paths.ensure_dirs()
     print(f"Initialisiert: {root}")
     return 0
@@ -125,12 +125,8 @@ def _cmd_transcribe(argv: list[str]) -> int:
     p.add_argument("--force", action="store_true", help="Bereits transkribierte Dateien erneut verarbeiten")
     args = p.parse_args(argv)
 
-    root = _resolve_root(args.root)
-    root.mkdir(parents=True, exist_ok=True)
-    config = Config.load_or_create(root)
-    paths = _setup_paths(root, config)
+    _root, config, paths = _bootstrap(args.root)
     paths.analysis.mkdir(parents=True, exist_ok=True)
-
     count = transcribe_all(paths, config, force=args.force)
     print(f"Transkribiert: {count} Datei(en)")
     return 0
@@ -146,14 +142,9 @@ def _cmd_analyze(argv: list[str]) -> int:
     p.add_argument("--force", action="store_true", help="Bereits analysierte Dateien erneut verarbeiten")
     args = p.parse_args(argv)
 
-    root = _resolve_root(args.root)
-    root.mkdir(parents=True, exist_ok=True)
-    config = Config.load_or_create(root)
-    paths = _setup_paths(root, config)
-
+    _root, config, paths = _bootstrap(args.root)
     ensure_llm_model(config.llm_model_path)
     embedding_model = EmbeddingModel(config.embedding_model)
-
     count = analyze_all(paths, config, embedding_model, force=args.force)
     print(f"Analysiert: {count} Datei(en)")
     return 0
@@ -168,11 +159,7 @@ def _cmd_report(argv: list[str]) -> int:
     p.add_argument("root", nargs="?", help="Wurzelverzeichnis (Standard: ~/DeinZeugs)")
     args = p.parse_args(argv)
 
-    root = _resolve_root(args.root)
-    root.mkdir(parents=True, exist_ok=True)
-    config = Config.load_or_create(root)
-    paths = _setup_paths(root, config)
-
+    _root, config, paths = _bootstrap(args.root)
     render_report(paths, config)
     _open_report(paths.reports / "report.html")
     return 0
@@ -203,10 +190,7 @@ def _cmd_delete_outputs(argv: list[str]) -> int:
     p.add_argument("--yes", "-y", action="store_true", help="Bestätigung überspringen")
     args = p.parse_args(argv)
 
-    root = _resolve_root(args.root)
-    root.mkdir(parents=True, exist_ok=True)
-    config = Config.load_or_create(root)
-    paths = _setup_paths(root, config)
+    _root, config, paths = _bootstrap(args.root)
     clean_outputs(paths, yes=args.yes)
     return 0
 
@@ -338,7 +322,11 @@ def main(argv=None):
             "delete-downloads": _cmd_delete_downloads,
             "delete-outputs": _cmd_delete_outputs,
         }
-        return dispatch[cmd](rest)
+        try:
+            return dispatch[cmd](rest)
+        except Exception:
+            print(f"dein-zeugs {cmd} fehlgeschlagen:\n{traceback.format_exc()}", file=sys.stderr)
+            return 1
 
     return _run_orchestrate(list(argv))
 

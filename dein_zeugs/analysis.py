@@ -324,6 +324,10 @@ def analyze_all(
 
     With *force*, re-analyze all transcribed YAMLs regardless of whether they
     already have an embedding.
+
+    Aired items are processed before inbox items and their embeddings are
+    progressively added to the reference corpus so that scoring matches the
+    ordering semantics of the default orchestration.
     """
     if not paths.analysis.exists():
         return 0
@@ -332,18 +336,29 @@ def analyze_all(
     aired_embeddings = [(stem, emb) for stem, _text, emb in aired]
     aired_stems = {stem for stem, _text, _emb in aired}
 
-    count = 0
-    for yaml_path in sorted(paths.analysis.glob("*.yaml")):
-        try:
-            data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-        if not data or not data.get("transcript"):
-            continue
-        if not force and data.get("embedding"):
-            continue
+    # Determine which stems correspond to aired files so we can process them
+    # first and grow the reference corpus progressively (matching the ordering
+    # in process_all_unprocessed).
+    aired_mp3_stems: set[str] = set()
+    if paths.aired.exists():
+        aired_mp3_stems = {normalize_stem(p.stem) for p in paths.aired.glob("*.mp3")}
 
-        stem = data["stem"]
+    def _needs_analysis(data: dict) -> bool:
+        return bool(data.get("transcript")) and (force or not data.get("embedding"))
+
+    def _load_candidates() -> list[tuple[Path, dict]]:
+        result = []
+        for yaml_path in sorted(paths.analysis.glob("*.yaml")):
+            try:
+                data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if data and _needs_analysis(data):
+                result.append((yaml_path, data))
+        return result
+
+    def _run_one(yaml_path: Path, data: dict) -> np.ndarray:
+        stem = data.get("stem") or normalize_stem(yaml_path.stem)
         text = data["transcript"]
         log.info(f"Analyse: {stem}")
 
@@ -353,6 +368,7 @@ def analyze_all(
         kws = keywords(text, config.llm_model_path)
 
         data.update({
+            "stem": stem,
             "summary": summary_text,
             "keywords": kws,
             "similarity_score": sim,
@@ -371,6 +387,27 @@ def analyze_all(
             data, allow_unicode=True, default_flow_style=False, sort_keys=False
         ).encode("utf-8")
         atomic_write(yaml_path, yaml_bytes)
+        return emb
+
+    count = 0
+    candidates = _load_candidates()
+
+    # Pass 1: aired items — each expands the reference corpus for later items.
+    for yaml_path, data in candidates:
+        stem = data.get("stem") or normalize_stem(yaml_path.stem)
+        if stem not in aired_mp3_stems:
+            continue
+        emb = _run_one(yaml_path, data)
+        aired_embeddings.append((stem, emb))
+        aired_stems.add(stem)
+        count += 1
+
+    # Pass 2: inbox items — scored against the now-complete aired corpus.
+    for yaml_path, data in candidates:
+        stem = data.get("stem") or normalize_stem(yaml_path.stem)
+        if stem in aired_mp3_stems:
+            continue
+        _run_one(yaml_path, data)
         count += 1
 
     compute_intra_batch_scores(paths, aired_stems)
