@@ -13,7 +13,7 @@ def _config(**kwargs) -> Config:
 
 
 # huggingface_hub may not be installed in the test environment; clean_downloads falls back to
-# Path.home() / ".cache" / "huggingface" / "hub".  We patch Path.home() in podq.models to point
+# Path.home() / ".cache" / "huggingface" / "hub".  We patch Path.home() in dein_zeugs.models to point
 # at tmp_path so the derived HF cache and fastembed paths land under a temp directory.
 
 def test_clean_downloads_removes_llm_file(tmp_path):

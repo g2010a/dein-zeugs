@@ -22,7 +22,7 @@ def _reconfigure_streams() -> None:
 
 
 def _open_report(report_path: Path) -> None:
-    if os.environ.get("PODQ_NO_OPEN"):
+    if os.environ.get("DEIN_ZEUGS_NO_OPEN"):
         return
     try:
         subprocess.run(["open", str(report_path)], check=False)

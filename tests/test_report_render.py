@@ -4,11 +4,11 @@ import re
 from pathlib import Path
 from bs4 import BeautifulSoup
 
-os.environ["PODQ_NO_OPEN"] = "1"
+os.environ["DEIN_ZEUGS_NO_OPEN"] = "1"
 
 
 def make_fixture_root(tmp_path: Path) -> Path:
-    root = tmp_path / "podq_root"
+    root = tmp_path / "dein_zeugs_root"
     for d in ["inbox", "analysis", "aired", "reports"]:
         (root / d).mkdir(parents=True)
     return root
