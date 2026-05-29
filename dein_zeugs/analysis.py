@@ -10,36 +10,49 @@ from dein_zeugs import __version__
 
 log = logging.getLogger("dein_zeugs")
 
-SUMMARY_PROMPT = (
-    "Fasse den folgenden Text in einem einzigen kurzen Satz zusammen. "
-    "Schreibe NUR diesen einen Satz – keine Erklärungen, keine Hinweise, keine Anmerkungen. "
-    "Enthält der Text Wiederholungen, fasse nur die Kernaussage zusammen.\n\n"
-    "Text: Ich würde gerne Gandhi treffen, das ist bestimmt spannend. Hat bestimmt eine gute Energie, der Typ.\n"
-    "Zusammenfassung: Ich möchte Gandhi treffen, er hat eine gute Energie.\n\n"
-    "Text: Mein Lieblingssport ist Laufen, weil man es spontan alleine oder mit anderen machen kann.\n"
-    "Zusammenfassung: Laufen ist mein Lieblingssport, weil spontan und flexibel.\n\n"
-    "Text: Anpassungsfähigkeit, unter anderem Anpassungsfähigkeit, sich begeistern können. Anpassungsfähigkeit, unter anderem Anpassungsfähigkeit, sich begeistern können.\n"
-    "Zusammenfassung: <Durcheinander>.\n\n"
-    "Text: Nein.\n"
-    "Zusammenfassung: 'Nein'.\n\n"
-    "Text: {transcript}\n"
-    "Zusammenfassung:"
-)
+SUMMARY_PROMPT = ("""
+Du fasst Transkripte von Kinderfragen an einen Podcast in einem einzigen deutschen Satz zusammen. Nenne dabei, wer fragt (Name, Alter, Herkunft – falls angegeben) und was gefragt oder gewünscht wird.
 
-KEYWORDS_PROMPT = (
-    "Gib 3 bis 5 Schlüsselwörter aus dem folgenden Text zurück. "
-    "Nur einzelne Wörter, kommagetrennt, keine Sätze, keine Erklärungen. "
-    "Verwende die Grundform (Infinitiv für Verben, Singular für Nomen). "
-    "Bei sehr kurzen Texten genügen 1 bis 2 Wörter.\n\n"
-    "Text: Ich schwimme gerne, weil ich meinen Kopf abschalten kann und es die Gelenke schont.\n"
-    "Schlüsselwörter: schwimmen, gelenk, entspannung\n\n"
-    "Text: Mein Lieblingssport ist Laufen, weil man es spontan alleine oder mit anderen machen kann.\n"
-    "Schlüsselwörter: laufen, sport, spontanität\n\n"
-    "Text: Nein.\n"
-    "Schlüsselwörter: nein\n\n"
-    "Text: {transcript}\n"
-    "Schlüsselwörter:"
-)
+Transkript: Hallo, ich bin Felix, ich bin acht Jahre alt und komme aus München. Meine Frage ist, mögt ihr lieber Pizza oder Pasta? Tschüss!
+Zusammenfassung: Felix (8, München) fragt, ob Pizza oder Pasta bevorzugt wird.
+
+Transkript: Hallo deine Freunde, hier ist Emma, ich bin neun Jahre alt und wollte fragen, was ihr am liebsten in eurer Freizeit macht. Tschüss, ihr seid super!
+Zusammenfassung: Emma (9) möchte wissen, was die Gastgeber in ihrer Freizeit am liebsten machen.
+
+Transkript: Hallo, ich bin Noah und bin zehn Jahre alt und komme aus Hamburg. Ich wollte euch fragen, was ihr macht, wenn ihr traurig seid. Danke und tschüss!
+Zusammenfassung: Noah (10, Hamburg) fragt, wie die Gastgeber mit Traurigkeit umgehen.
+
+Transkript: Hi deine Freunde, ich bin Theo, 9 Jahre alt, und ich wollte fragen: Wenn man rückwärts läuft, kommt man dann früher an? Tschüss!
+Zusammenfassung: Theo (9) stellt die scherzhafte Frage, ob man rückwärts laufend schneller ans Ziel kommt.
+
+Transkript: Hallo, ich bin Sarah aus Köln und finde euren Podcast richtig toll. Könnt ihr bitte meinen Bruder Tobi grüßen? Der würde sich so freuen! Tschüss!
+Zusammenfassung: Sarah aus Köln lobt den Podcast und bittet darum, ihren Bruder Tobi zu grüßen.
+
+Text: {{TRANSKRIPT}}
+Zusammenfassung:
+""")
+
+KEYWORDS_PROMPT = ("""
+Du extrahierst aus Podcast-Transkripten 4–6 aussagekräftige Schlüsselwörter auf Deutsch, die den Inhalt treffend charakterisieren. Verwende auch semantisch passende Begriffe, die nicht wörtlich im Transkript stehen – z. B. einen Oberbegriff, eine Kategorie oder ein verwandtes Konzept.
+
+Transkript: Hallo, ich bin Felix, ich bin acht Jahre alt und komme aus München. Meine Frage ist, mögt ihr lieber Pizza oder Pasta? Tschüss!
+Schlüsselwörter: Lieblingsessen, Präferenz, Pizza, Pasta, München
+
+Transkript: Hallo deine Freunde, ich bin Marlene, ich bin elf Jahre alt und ich wollte euch fragen, was ihr so macht, wenn ihr wütend seid. Tschüss!
+Schlüsselwörter: Wut, Emotionsregulation, Gefühle, Bewältigungsstrategie, Ratschlag
+
+Transkript: Hi deine Freunde, ich bin Theo, 9 Jahre alt, und ich wollte fragen: Wenn man rückwärts läuft, kommt man dann früher an? Tschüss!
+Schlüsselwörter: Denkrätsel, Logik, Bewegung, Humor, Paradoxon
+
+Transkript: Hallo, ich bin Sarah aus Köln und finde euren Podcast richtig toll. Könnt ihr bitte meinen Bruder Tobi grüßen? Der würde sich so freuen! Tschüss!
+Schlüsselwörter: Grußbotschaft, Geschwister, Fanbindung, Köln
+
+Transkript: Hallo, mein Name ist Klara, ich bin zwölf und komme aus Dresden. Ich wollte fragen, wie ihr mit Lampenfieber umgeht, bevor ihr auf die Bühne geht. Das würde mir helfen, weil ich nächste Woche ein Schulreferat halten muss. Tschüss!
+Schlüsselwörter: Lampenfieber, Auftrittsangst, Nervosität, Schulreferat, Tipps, Dresden
+
+Text: {{TRANSKRIPT}}
+Schlüsselwörter:
+""")
 
 _llm_instance = None
 _llm_error: Exception | None = None
