@@ -48,7 +48,9 @@ document.addEventListener('DOMContentLoaded', function () {
         el.getAttribute('data-summary') || '',
         el.getAttribute('data-keywords') || '',
         el.getAttribute('data-first-seen') || '',
-        el.getAttribute('data-analyzed-at') || ''
+        el.getAttribute('data-analyzed-at') || '',
+        // NOTE: I would rather do extra computation and avoid repeating long texts by embedding them as data attributes
+        el.getElementsByClassName('transcript-body')[0]?.textContent || '',
       ].join(' ').toLowerCase();
       if (!text.includes(q)) return false;
     }
