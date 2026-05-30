@@ -8,7 +8,7 @@ build:
 
 package: build
 	codesign --force --deep --sign - dist/dein-zeugs
-	@echo "Binary at dist/dein-zeugs — ready to copy to /usr/local/bin/"
+	@echo "Binary at dist/dein-zeugs — upload as GitHub Release asset."
 
 clean:
 	rm -rf dist/ build/work/ build/__pycache__/
