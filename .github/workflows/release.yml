@@ -60,10 +60,10 @@ jobs:
           python -m venv .venv
           .venv/bin/pip install --prefer-binary -e . pyinstaller
 
-      - name: Build and package release archive
+      - name: Build release binary
         run: make release
 
-      - name: Upload release archive
+      - name: Upload release binary
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload ${{ needs.release.outputs.tag }} dist/dein-zeugs-release.zip --clobber
+        run: gh release upload ${{ needs.release.outputs.tag }} dist/dein-zeugs --clobber

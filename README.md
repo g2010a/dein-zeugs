@@ -10,7 +10,7 @@ Ein macOS-Werkzeug für Apple Silicon, das aufgezeichnete Hörerfragen transkrib
 
 ## Installation
 
-1. Das Release-Archiv von der [Releases-Seite](../../releases/latest) herunterladen (~70 MB), entpacken und `dein-zeugs` an einen dauerhaften Ort verschieben (z. B. in den Ordner `Programme` im Finder).
+1. `dein-zeugs` von der [Releases-Seite](../../releases/latest) herunterladen (~70 MB) und an einen dauerhaften Ort verschieben (z. B. in den Ordner `Programme` im Finder).
 2. `dein-zeugs` im Finder **rechtsklicken → Öffnen → Öffnen** — dieser Schritt ist nur einmalig nötig, damit macOS die Datei als vertrauenswürdig einstuft.
 
 > **Falls macOS „Apple konnte … nicht verifizieren" meldet und nur „Fertig" anbietet:**
@@ -122,10 +122,10 @@ source .venv/bin/activate
 uv pip install -e ".[dev]"
 uv pip install pyinstaller
 make build            # erstellt dist/dein-zeugs (~70 MB)
-make release          # signiert das Binary ad-hoc und packt dist/dein-zeugs-release.zip
+make release          # signiert das Binary ad-hoc (ergibt dist/dein-zeugs)
 ```
 
-Das fertige Archiv (`dist/dein-zeugs-release.zip`) als GitHub-Release hochladen.
+Das fertige Binary (`dist/dein-zeugs`) als GitHub-Release hochladen.
 
 ---
 
