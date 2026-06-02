@@ -1,6 +1,213 @@
 # CHANGELOG
 
 
+## v0.3.0 (2026-06-02)
+
+### Bug Fixes
+
+- Address code-review findings from Phase 4 validation
+  ([`9f8c7a0`](https://github.com/g2010a/dein-zeugs/commit/9f8c7a06abd188f37a035c7c3a2fca900cd75bea))
+
+ensure_llm_model(force=True): removed premature path.unlink() that deleted the existing model before
+  the download completed. The post-download replacement block (lines 76-82) already handles the
+  atomic swap safely; the early unlink was redundant and left the user with no model on download
+  failure.
+
+analyze_all: two fixes — (1) data["stem"] -> data.get("stem") or normalize_stem(yaml_path.stem) to
+  avoid KeyError on a hand-edited or partially-written YAML; (2) aired items are now processed in a
+  first pass and each embedding is appended to aired_embeddings before inbox items are scored,
+  matching the progressive ordering of process_all_unprocessed.
+
+cli.py: - Extracted _bootstrap() helper (root resolve + mkdir + Config + Paths) shared by the five
+  handlers that previously repeated the same four lines verbatim. - Added try/except around the
+  subcommand dispatch so any unhandled exception prints to stderr and returns 1 instead of
+  propagating a raw traceback to the caller. - _load_config_optional now prints a warning to stderr
+  when a supplied root exists but config loading fails.
+
+tests: added coverage for partial-YAML resumption, transcribe skip, analyze skip, ensure_llm_model
+  force safety, and subcommand error wrapping.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+- **analysis**: Clarify prompt wording for summary extraction
+  ([`404c40c`](https://github.com/g2010a/dein-zeugs/commit/404c40c512f3488f5baf4cd61d32e70d3106c8e0))
+
+The SUMMARY_PROMPT previously said "falls angegeben" (if provided), which could be read as always
+  listing all three fields. Adding "nur" (only) makes it unambiguous that fields should be omitted
+  when absent.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+- **report**: Search full transcript without button-text leakage
+  ([`89f31f6`](https://github.com/g2010a/dein-zeugs/commit/89f31f6659ee058ed8eafd65a7daf07019d4b02d))
+
+Replace single textContent-on-transcript-body with two targeted reads: -
+  getElementsByClassName('transcript-rest')[0]?.textContent — hidden span (chars 301+) -
+  getElementsByClassName('transcript-body')[0]?.firstChild?.textContent — leading text node (chars
+  1-300)
+
+This covers the full transcript while excluding the "Mehr anzeigen" button text that previously
+  caused spurious matches on the word "mehr".
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+### Build System
+
+- Add make release target and update README build instructions
+  ([`cebc0c5`](https://github.com/g2010a/dein-zeugs/commit/cebc0c5e79c191b9dd1f0ab8b8a13b0569d0700f))
+
+- make release: signs binary, copies dein-zeugs + dein-zeugs.command into dist/release/, zips as
+  dist/dein-zeugs-release.zip for GitHub upload - README: replace 'make package' with 'make release'
+  in build instructions
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+### Chores
+
+- Rename PODQ_NO_OPEN env var and remaining podq references to dein_zeugs
+  ([`4470fba`](https://github.com/g2010a/dein-zeugs/commit/4470fbaa5a154c977c1d602e61bbde3a6883b884))
+
+The package was renamed from podq to dein-zeugs in 0.1.0 but several test fixtures, logger names,
+  and the PODQ_NO_OPEN environment variable still used the old name. The env var is the only
+  user-visible surface (used to suppress macOS 'open' during tests), so it must match the current
+  project identity.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+### Documentation
+
+- Add dein-zeugs.command launcher and fix Gatekeeper instructions
+  ([`f82293c`](https://github.com/g2010a/dein-zeugs/commit/f82293c81a7cabb040523564bec7bf9a501e5eb6))
+
+macOS opens .command files in Terminal on double-click; plain binaries have no app association and
+  open in TextEdit. Reintroduce a minimal launcher that removes the binary's quarantine flag on
+  first run so users only need to approve one simple dialog.
+
+- installer/dein-zeugs.command: cd to own dir, xattr-strip binary, run it - README: installation now
+  references two-file archive and .command launcher - README: daily usage points to
+  dein-zeugs.command double-click - README: build/release section updated to list both release
+  artifacts
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+- Add screenshot
+  ([`0905bbd`](https://github.com/g2010a/dein-zeugs/commit/0905bbda9ac43db1f50bc578cab14eec6b844783))
+
+For marketing purposes :P
+
+- Rewrite README with Divio structure, remove installer
+  ([`4c66189`](https://github.com/g2010a/dein-zeugs/commit/4c6618916cce7939640fed2da4045a614fd20467))
+
+- Restructure README usage-first (Divio): install → daily use → CLI reference → config → directory
+  layout → report → advanced → maintainer - Update CLI reference from old flags (--warm-models,
+  --clean-outputs, --clean-downloads) to current subcommands (fetch-models, delete-outputs,
+  delete-downloads, transcribe, analyze, cluster, report, initialize) - Simplify installation to:
+  download binary, right-click Open once - Remove installer/install.sh and installer/Run
+  podq.command — the PyInstaller binary is double-clickable directly; no installer needed - Update
+  Makefile package message to reference GitHub Release upload
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+### Features
+
+- Search transcripts
+  ([`b125137`](https://github.com/g2010a/dein-zeugs/commit/b125137fef7ee561db32c7b9c939a6f926ad961a))
+
+User expects search to include all text
+
+- **analysis**: Add transcribe_all and analyze_all for independent pipeline steps
+  ([`5b5a83c`](https://github.com/g2010a/dein-zeugs/commit/5b5a83c189f08ecfe6943cd69bc52ab105ec550d))
+
+The default process_all_unprocessed fused transcription and LLM analysis into a single pass with no
+  way to run either step alone. This prevented users from, e.g., batch-transcribing overnight and
+  running the heavier LLM analysis separately.
+
+Changes: - transcribe_all: writes partial YAMLs (transcript + metadata only); skips
+  already-transcribed files unless --force clears analysis fields - analyze_all: fills in
+  embedding/summary/keywords on partial YAMLs; skips files that already have an embedding unless
+  --force - _analyze_one: reuses an existing transcript from a partial YAML so the default
+  orchestration can resume from a prior transcribe step - process_all_unprocessed: now uses
+  _needs_full_analysis (no YAML OR YAML missing embedding) instead of the stricter "no YAML" check,
+  so it cleanly completes files left half-done by transcribe_all
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+- **cli**: Add cluster subcommand and wire into default workflow
+  ([`ba0f2e8`](https://github.com/g2010a/dein-zeugs/commit/ba0f2e87df5f94db748a23876edf24ff4a5700c0))
+
+Adds cluster_all() which computes cluster assignments from transcript embeddings (chosen over
+  summary/keyword embeddings as they are LLM-free and carry the full semantic signal without
+  abstraction errors) and writes cluster_id back to each YAML atomically.
+
+render_report now reads stored cluster_id when available; falls back to recomputing from embeddings
+  on first run. The default orchestration workflow calls cluster_all between the analysis drain loop
+  and report rendering.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+- **cli**: Expose pipeline steps as independent subcommands
+  ([`a5f5e93`](https://github.com/g2010a/dein-zeugs/commit/a5f5e9324ac1c7ce0c73527221de58f20562f2ab))
+
+Following Unix philosophy, each stage of the workflow is now a discrete subcommand so it can be
+  invoked, scripted, or debugged in isolation:
+
+dein-zeugs initialize – create directory tree + config dein-zeugs fetch-models – download/warm all
+  model caches dein-zeugs transcribe [--force] – run Whisper, write partial YAMLs dein-zeugs analyze
+  [--force] – LLM analysis on transcribed YAMLs dein-zeugs report – render HTML report from YAMLs
+  dein-zeugs delete-downloads – remove downloaded model files dein-zeugs delete-outputs – empty
+  analysis/ and reports/
+
+The bare `dein-zeugs [root]` invocation is unchanged: it orchestrates whatever steps are still
+  needed, exactly as before. The legacy --warm-models / --clean-downloads / --clean-outputs flags
+  are kept for backwards compatibility.
+
+ensure_llm_model gains a force= parameter so fetch-models --force can delete and re-download an
+  existing LLM file.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+### Refactoring
+
+- Remove slop from analysis.py and cli.py
+  ([`e170550`](https://github.com/g2010a/dein-zeugs/commit/e17055082126c11325e5bff9da905f6d2c7f6e4c))
+
+analysis.py: - Removed multi-paragraph docstrings from transcribe_all, analyze_all, and
+  process_all_unprocessed (project style: one short line max) - Eliminated _needs_analysis and
+  _load_candidates inner closures in analyze_all; they were each used exactly once and added nesting
+  for trivially simple operations - Pre-compute stem when building candidates to remove the
+  three-way duplication across _run_one and the two loop passes - Removed a comment in _analyze_one
+  that explained what the code does rather than why
+
+cli.py: - Removed three cosmetic # ---...--- section-divider banners
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+- **cli**: Remove flags that duplicate subcommands
+  ([`adf5328`](https://github.com/g2010a/dein-zeugs/commit/adf5328e42a56c2086c5c01907607727751adc2b))
+
+--warm-models, --clean-downloads, --clean-outputs, --yes, and --skip-llm in _run_orchestrate
+  duplicated fetch-models, delete-downloads, and delete-outputs. Removed the flags and their tests;
+  subcommand tests already provide equivalent coverage.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+### Testing
+
+- **cli**: Add coverage for all seven new subcommands
+  ([`d3f1dfe`](https://github.com/g2010a/dein-zeugs/commit/d3f1dfeec0ca27db3b7fd0a61f672cf9fd6a1fb2))
+
+Each subcommand (initialize, fetch-models, transcribe, analyze, report, delete-downloads,
+  delete-outputs) now has dedicated tests verifying: - it returns 0 on success - it calls the
+  expected underlying function - flag variants (--force, --yes, --skip-llm) are forwarded correctly
+  - the default root (~/DeinZeugs) is used when no root is supplied
+
+Also moved transcribe_all and analyze_all to the module-level import in cli.py so they can be
+  patched at dein_zeugs.cli.* in tests, consistent with how process_all_unprocessed is already
+  handled.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+
 ## v0.2.0 (2026-05-29)
 
 ### Features
