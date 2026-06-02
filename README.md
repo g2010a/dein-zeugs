@@ -4,6 +4,8 @@ Ein macOS-Werkzeug für Apple Silicon, das aufgezeichnete Hörerfragen transkrib
 
 **Voraussetzungen:** macOS 14+, Apple Silicon (arm64).
 
+![screenshot of a DOS-like report UI](./images/DeinZeugs_screenshot.png)
+
 ---
 
 ## Installation
