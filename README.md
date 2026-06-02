@@ -10,11 +10,13 @@ Ein macOS-Werkzeug für Apple Silicon, das aufgezeichnete Hörerfragen transkrib
 
 ## Installation
 
-1. Das Release-Archiv von der [Releases-Seite](../../releases/latest) herunterladen (~70 MB) und entpacken. Es enthält zwei Dateien:
-   - `dein-zeugs` — das Programm
-   - `dein-zeugs.command` — der Starter (diesen doppelklicken)
-2. Beide Dateien zusammen an einen dauerhaften Ort verschieben (z. B. in den Ordner `Programme` im Finder).
-3. `dein-zeugs.command` doppelklicken → macOS fragt einmalig, ob die Datei geöffnet werden soll → **Öffnen** klicken.
+1. Das Release-Archiv von der [Releases-Seite](../../releases/latest) herunterladen (~70 MB), entpacken und `dein-zeugs` an einen dauerhaften Ort verschieben (z. B. in den Ordner `Programme` im Finder).
+2. `dein-zeugs` im Finder **rechtsklicken → Öffnen → Öffnen** — dieser Schritt ist nur einmalig nötig, damit macOS die Datei als vertrauenswürdig einstuft.
+
+> **Falls macOS „Apple konnte … nicht verifizieren" meldet und nur „Fertig" anbietet:**
+> 1. „Fertig" klicken (nicht „In den Papierkorb").
+> 2. **Systemeinstellungen → Datenschutz & Sicherheit** öffnen, nach unten scrollen und **„Trotzdem öffnen"** neben `dein-zeugs` anklicken.
+> 3. Passwort eingeben und `dein-zeugs` erneut starten.
 
 Beim ersten Start werden automatisch alle benötigten Modelle heruntergeladen (~2,3 GB). Danach ist keine Internetverbindung mehr nötig.
 
@@ -23,7 +25,7 @@ Beim ersten Start werden automatisch alle benötigten Modelle heruntergeladen (~
 ## Tägliche Nutzung
 
 1. MP3-Aufnahmen der Hörerfragen in `~/DeinZeugs/inbox/` ablegen.
-2. **dein-zeugs.command** doppelklicken.
+2. `dein-zeugs` doppelklicken oder im Terminal ausführen.
 3. Der Bericht öffnet sich automatisch im Browser.
 
 **Ausgestrahlte Fragen:** Sobald eine Frage gesendet wurde, die MP3 aus `inbox/` in `~/DeinZeugs/aired/` verschieben. Beim nächsten Start dient `aired/` als Referenzkorpus — neue Fragen werden auf Neuheit gegenüber allem in `aired/` bewertet. Der Bericht enthält `file://`-Links zu beiden Ordnern, sodass das Verschieben direkt im Finder erfolgen kann.
@@ -120,7 +122,7 @@ source .venv/bin/activate
 uv pip install -e ".[dev]"
 uv pip install pyinstaller
 make build            # erstellt dist/dein-zeugs (~70 MB)
-make release          # signiert das Binary und packt dist/dein-zeugs-release.zip
+make release          # signiert das Binary ad-hoc und packt dist/dein-zeugs-release.zip
 ```
 
 Das fertige Archiv (`dist/dein-zeugs-release.zip`) als GitHub-Release hochladen.
