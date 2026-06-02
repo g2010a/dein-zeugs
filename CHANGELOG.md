@@ -1,6 +1,15 @@
 # CHANGELOG
 
 
+## v0.3.1 (2026-06-02)
+
+### Bug Fixes
+
+- **release**: Upload zip archive instead of bare binary
+  ([#3](https://github.com/g2010a/dein-zeugs/pull/3),
+  [`2f4673c`](https://github.com/g2010a/dein-zeugs/commit/2f4673c8e6d53435a491e14153d1716a6befcd8e))
+
+
 ## v0.3.0 (2026-06-02)
 
 ### Bug Fixes
