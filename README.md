@@ -8,9 +8,11 @@ Ein macOS-Werkzeug für Apple Silicon, das aufgezeichnete Hörerfragen transkrib
 
 ## Installation
 
-1. `dein-zeugs` von der [Releases-Seite](../../releases/latest) herunterladen (~70 MB).
-2. Die Datei an einen dauerhaften Ort verschieben (z. B. `~/Programme/`).
-3. Beim ersten Öffnen: Rechtsklick auf `dein-zeugs` → *Öffnen* → *Öffnen* bestätigen. (Nur einmalig nötig, damit macOS die Datei zulässt.)
+1. Das Release-Archiv von der [Releases-Seite](../../releases/latest) herunterladen (~70 MB) und entpacken. Es enthält zwei Dateien:
+   - `dein-zeugs` — das Programm
+   - `dein-zeugs.command` — der Starter (diesen doppelklicken)
+2. Beide Dateien zusammen an einen dauerhaften Ort verschieben (z. B. in den Ordner `Programme` im Finder).
+3. `dein-zeugs.command` doppelklicken → macOS fragt einmalig, ob die Datei geöffnet werden soll → **Öffnen** klicken.
 
 Beim ersten Start werden automatisch alle benötigten Modelle heruntergeladen (~2,3 GB). Danach ist keine Internetverbindung mehr nötig.
 
@@ -19,7 +21,7 @@ Beim ersten Start werden automatisch alle benötigten Modelle heruntergeladen (~
 ## Tägliche Nutzung
 
 1. MP3-Aufnahmen der Hörerfragen in `~/DeinZeugs/inbox/` ablegen.
-2. **Run dein-zeugs.command** auf dem Schreibtisch doppelklicken.
+2. **dein-zeugs.command** doppelklicken.
 3. Der Bericht öffnet sich automatisch im Browser.
 
 **Ausgestrahlte Fragen:** Sobald eine Frage gesendet wurde, die MP3 aus `inbox/` in `~/DeinZeugs/aired/` verschieben. Beim nächsten Start dient `aired/` als Referenzkorpus — neue Fragen werden auf Neuheit gegenüber allem in `aired/` bewertet. Der Bericht enthält `file://`-Links zu beiden Ordnern, sodass das Verschieben direkt im Finder erfolgen kann.
@@ -119,7 +121,14 @@ make build            # erstellt dist/dein-zeugs (~70 MB)
 make package          # signiert das Binary
 ```
 
-Das Release-Artefakt ist die einzelne Binärdatei `dist/dein-zeugs`. Diese als GitHub-Release hochladen.
+Das Release-Archiv enthält zwei Dateien:
+
+```
+dist/dein-zeugs
+installer/dein-zeugs.command
+```
+
+Als GitHub-Release hochladen. Endnutzer laden nur dieses herunter.
 
 ---
 
