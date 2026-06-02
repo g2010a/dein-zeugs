@@ -1,6 +1,6 @@
 # Automator-Ordneraktion einrichten (optional)
 
-> **Die meisten Nutzer benötigen dies nicht.** Das Release-Installationsskript legt einen `Run dein-zeugs.command`-Starter auf dem Schreibtisch ab — durch Doppelklick wird `inbox/` verarbeitet und der Bericht geöffnet. Eine Automator-Ordneraktion ist nur sinnvoll, wenn `dein-zeugs` **automatisch** starten soll, sobald eine Datei in den inbox-Ordner abgelegt wird.
+> **Die meisten Nutzer benötigen dies nicht.** `dein-zeugs` lässt sich durch Doppelklick oder über das Terminal starten. Eine Automator-Ordneraktion ist nur sinnvoll, wenn `dein-zeugs` **automatisch** starten soll, sobald eine Datei in den inbox-Ordner abgelegt wird.
 
 Diese Anleitung beschreibt, wie eine macOS-Automator-Ordneraktion konfiguriert wird, sodass das Ablegen einer MP3 in `inbox/` automatisch `dein-zeugs` auslöst.
 
@@ -55,4 +55,4 @@ Diese Anleitung beschreibt, wie eine macOS-Automator-Ordneraktion konfiguriert w
 
 - Zum Testen: eine einzelne MP3 in den inbox-Ordner ziehen und die Protokolldatei beobachten (`tail -f ~/Library/Logs/dein_zeugs/dein_zeugs.log`).
 
-- Der Schreibtisch-Starter (`Run dein-zeugs.command`) und die Automator-Aktion schließen sich nicht gegenseitig aus — beide können installiert sein. Die Sperrdatei unter `{root}/.dein_zeugs.lock` verhindert gleichzeitige Starts.
+- Die Sperrdatei unter `{root}/.dein_zeugs.lock` verhindert gleichzeitige Starts, falls `dein-zeugs` manuell und über die Ordneraktion gleichzeitig ausgelöst wird.
