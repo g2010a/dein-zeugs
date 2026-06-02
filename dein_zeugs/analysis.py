@@ -4,14 +4,14 @@ import numpy as np
 from datetime import datetime, timezone
 from pathlib import Path
 from dein_zeugs.util.atomic import atomic_write
-from dein_zeugs.paths import ProjectPaths, unprocessed_audio, unprocessed_aired_audio, normalize_stem
+from dein_zeugs.paths import ProjectPaths, normalize_stem
 from dein_zeugs.embedding import EmbeddingModel
 from dein_zeugs import __version__
 
 log = logging.getLogger("dein_zeugs")
 
 SUMMARY_PROMPT = ("""\
-Du fasst Transkripte von Kinderfragen an einen Podcast in einem einzigen deutschen Satz zusammen. Nenne dabei, wer fragt (Name, Alter, Herkunft – falls angegeben) und was gefragt oder gewünscht wird.
+Du fasst Transkripte von Kinderfragen an einen Podcast in einem einzigen deutschen Satz zusammen. Nenne dabei, wer fragt (Name, Alter, Herkunft – nur falls angegeben) und was gefragt oder gewünscht wird.
 
 Transkript: Hallo, ich bin Felix, ich bin acht Jahre alt und komme aus München. Meine Frage ist, mögt ihr lieber Pizza oder Pasta? Tschüss!
 Zusammenfassung: Felix (8, München) fragt, ob Pizza oder Pasta bevorzugt wird.
@@ -190,6 +190,26 @@ def compute_intra_batch_scores(paths: ProjectPaths, aired_stems: set[str]) -> No
         log.info(f"Batch-Einzigartigkeit berechnet: {stem} → {intra:.4f}")
 
 
+def _needs_full_analysis(directory: Path, paths: ProjectPaths) -> list[Path]:
+    """MP3s that need analysis: no YAML at all, or YAML present but missing embedding."""
+    if not directory.exists():
+        return []
+    result = []
+    for mp3 in directory.glob("*.mp3"):
+        stem = normalize_stem(mp3.stem)
+        yaml_path = paths.analysis / f"{stem}.yaml"
+        if not yaml_path.exists():
+            result.append(mp3)
+            continue
+        try:
+            data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+            if not data or not data.get("embedding"):
+                result.append(mp3)
+        except Exception:
+            result.append(mp3)
+    return result
+
+
 def _analyze_one(
     mp3: Path,
     stem: str,
@@ -199,12 +219,23 @@ def _analyze_one(
     embedding_model: EmbeddingModel,
     aired_embeddings: list[tuple[str, np.ndarray]],
 ) -> np.ndarray:
-    text = transcriber.transcribe(mp3)
+    yaml_path = paths.analysis / f"{stem}.yaml"
+    existing: dict = {}
+    if yaml_path.exists():
+        try:
+            existing = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
+        except Exception:
+            pass
+
+    text = existing.get("transcript") or transcriber.transcribe(mp3)
+    first_seen = existing.get("first_seen") or datetime.fromtimestamp(
+        mp3.stat().st_mtime, timezone.utc
+    ).isoformat()
+
     emb = embedding_model.embed(text)
     sim, nov, nearest = score(emb, aired_embeddings)
     summary_text = summarize(text, config.llm_model_path)
     kws = keywords(text, config.llm_model_path)
-    first_seen = datetime.fromtimestamp(mp3.stat().st_mtime, timezone.utc).isoformat()
     data: dict = {
         "stem": stem,
         "first_seen": first_seen,
@@ -225,8 +256,186 @@ def _analyze_one(
     yaml_bytes = yaml.dump(
         data, allow_unicode=True, default_flow_style=False, sort_keys=False
     ).encode("utf-8")
-    atomic_write(paths.analysis / f"{stem}.yaml", yaml_bytes)
+    atomic_write(yaml_path, yaml_bytes)
     return emb
+
+
+def cluster_all(paths: ProjectPaths, config) -> int:
+    """Compute cluster assignments from transcript embeddings and write cluster_id to each YAML.
+
+    Uses the transcript embedding (not summary or keywords): it is LLM-free,
+    already computed, and carries the full semantic signal without abstraction errors.
+    """
+    from dein_zeugs.clustering import build_clusters
+
+    if not paths.analysis.exists():
+        return 0
+
+    items: list[dict] = []
+    yaml_paths: dict[str, Path] = {}
+    for yaml_file in sorted(paths.analysis.glob("*.yaml")):
+        try:
+            data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not data or "embedding" not in data:
+            continue
+        stem = data.get("stem") or normalize_stem(yaml_file.stem)
+        items.append({"stem": stem, "embedding": data["embedding"]})
+        yaml_paths[stem] = yaml_file
+
+    if not items:
+        return 0
+
+    clusters = build_clusters(items, config.similarity_threshold)
+
+    stem_to_cid: dict[str, str] = {}
+    for i, cluster in enumerate(clusters):
+        if len(cluster) > 1:
+            for stem in cluster:
+                stem_to_cid[stem] = f"cluster_{i}"
+
+    for stem, yaml_file in yaml_paths.items():
+        try:
+            data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not data:
+            continue
+        new_cid = stem_to_cid.get(stem)
+        if data.get("cluster_id") == new_cid:
+            continue
+        if new_cid is None:
+            data.pop("cluster_id", None)
+        else:
+            data["cluster_id"] = new_cid
+        yaml_bytes = yaml.dump(
+            data, allow_unicode=True, default_flow_style=False, sort_keys=False
+        ).encode("utf-8")
+        atomic_write(yaml_file, yaml_bytes)
+        log.info(f"Cluster-ID gesetzt: {stem} → {new_cid}")
+
+    return len(items)
+
+
+def transcribe_all(paths: ProjectPaths, config, force: bool = False) -> int:
+    from dein_zeugs.transcription import WhisperTranscriber
+    transcriber = WhisperTranscriber(model_name=config.whisper_model)
+    paths.analysis.mkdir(parents=True, exist_ok=True)
+
+    count = 0
+    for directory in (paths.inbox, paths.aired):
+        if not directory.exists():
+            continue
+        for mp3 in sorted(directory.glob("*.mp3")):
+            stem = normalize_stem(mp3.stem)
+            yaml_path = paths.analysis / f"{stem}.yaml"
+
+            if not force and yaml_path.exists():
+                try:
+                    data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+                    if data and data.get("transcript"):
+                        continue
+                except Exception:
+                    pass
+
+            log.info(f"Transkription: {mp3.name}")
+            text = transcriber.transcribe(mp3)
+            first_seen = datetime.fromtimestamp(mp3.stat().st_mtime, timezone.utc).isoformat()
+
+            existing: dict = {}
+            if yaml_path.exists():
+                try:
+                    existing = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
+                except Exception:
+                    pass
+
+            partial: dict = {
+                "stem": stem,
+                "first_seen": existing.get("first_seen", first_seen),
+                "transcript": text,
+                "dein_zeugs_version": __version__,
+            }
+            yaml_bytes = yaml.dump(
+                partial, allow_unicode=True, default_flow_style=False, sort_keys=False
+            ).encode("utf-8")
+            atomic_write(yaml_path, yaml_bytes)
+            count += 1
+
+    return count
+
+
+def analyze_all(
+    paths: ProjectPaths,
+    config,
+    embedding_model: EmbeddingModel,
+    force: bool = False,
+) -> int:
+    if not paths.analysis.exists():
+        return 0
+
+    aired = embedding_model.aired_corpus(paths)
+    aired_embeddings = [(stem, emb) for stem, _text, emb in aired]
+    aired_stems = {stem for stem, _text, _emb in aired}
+
+    aired_mp3_stems: set[str] = set()
+    if paths.aired.exists():
+        aired_mp3_stems = {normalize_stem(p.stem) for p in paths.aired.glob("*.mp3")}
+
+    # Build candidate list with stem resolved once.
+    candidates: list[tuple[Path, str, dict]] = []
+    for yaml_path in sorted(paths.analysis.glob("*.yaml")):
+        try:
+            data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if data and data.get("transcript") and (force or not data.get("embedding")):
+            candidates.append((yaml_path, data.get("stem") or normalize_stem(yaml_path.stem), data))
+
+    def _run_one(yaml_path: Path, stem: str, data: dict) -> np.ndarray:
+        text = data["transcript"]
+        log.info(f"Analyse: {stem}")
+        emb = embedding_model.embed(text)
+        sim, nov, nearest = score(emb, aired_embeddings)
+        data.update({
+            "stem": stem,
+            "summary": summarize(text, config.llm_model_path),
+            "keywords": keywords(text, config.llm_model_path),
+            "similarity_score": sim,
+            "novelty_score": nov,
+            "nearest_aired_stem": nearest,
+            "language": data.get("language", "auto"),
+            "dein_zeugs_version": __version__,
+            "analyzed_at": datetime.now(timezone.utc).isoformat(),
+            "embedding": emb.tolist(),
+        })
+        llm_err = get_llm_error()
+        if llm_err:
+            data["llm_error"] = llm_err
+        yaml_bytes = yaml.dump(
+            data, allow_unicode=True, default_flow_style=False, sort_keys=False
+        ).encode("utf-8")
+        atomic_write(yaml_path, yaml_bytes)
+        return emb
+
+    count = 0
+    # Aired first: each embedding is added to the corpus before inbox items are scored.
+    for yaml_path, stem, data in candidates:
+        if stem not in aired_mp3_stems:
+            continue
+        emb = _run_one(yaml_path, stem, data)
+        aired_embeddings.append((stem, emb))
+        aired_stems.add(stem)
+        count += 1
+
+    for yaml_path, stem, data in candidates:
+        if stem in aired_mp3_stems:
+            continue
+        _run_one(yaml_path, stem, data)
+        count += 1
+
+    compute_intra_batch_scores(paths, aired_stems)
+    return count
 
 
 def process_all_unprocessed(
@@ -242,13 +451,13 @@ def process_all_unprocessed(
     aired_stems = {stem for stem, _text, _emb in aired}
 
     count = 0
-    for mp3 in unprocessed_audio(paths):
+    for mp3 in _needs_full_analysis(paths.inbox, paths):
         stem = normalize_stem(mp3.stem)
         log.info(f"Transkription und Analyse: {mp3.name}")
         _analyze_one(mp3, stem, paths, config, transcriber, embedding_model, aired_embeddings)
         count += 1
 
-    for mp3 in unprocessed_aired_audio(paths):
+    for mp3 in _needs_full_analysis(paths.aired, paths):
         stem = normalize_stem(mp3.stem)
         log.info(f"Transkription und Analyse (gesendet): {mp3.name}")
         emb = _analyze_one(mp3, stem, paths, config, transcriber, embedding_model, aired_embeddings)

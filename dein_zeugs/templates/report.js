@@ -48,7 +48,9 @@ document.addEventListener('DOMContentLoaded', function () {
         el.getAttribute('data-summary') || '',
         el.getAttribute('data-keywords') || '',
         el.getAttribute('data-first-seen') || '',
-        el.getAttribute('data-analyzed-at') || ''
+        el.getAttribute('data-analyzed-at') || '',
+        el.getElementsByClassName('transcript-rest')[0]?.textContent || '',
+        el.getElementsByClassName('transcript-body')[0]?.firstChild?.textContent || '',
       ].join(' ').toLowerCase();
       if (!text.includes(q)) return false;
     }

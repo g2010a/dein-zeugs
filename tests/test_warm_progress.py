@@ -18,7 +18,7 @@ from unittest.mock import MagicMock
 
 
 def _install_fake_tqdm(monkeypatch):
-    """Inject a minimal fake `tqdm` package so podq.models imports succeed."""
+    """Inject a minimal fake `tqdm` package so dein_zeugs.models imports succeed."""
 
     class _FakeTqdm:
         def __init__(self, *args, total=None, file=None, **kwargs):
@@ -141,7 +141,7 @@ def test_warm_models_streams_progress_before_ready(tmp_path, monkeypatch):
     monkeypatch.setattr(sys, "stderr", captured)
 
     import logging
-    log = logging.getLogger("podq-test")
+    log = logging.getLogger("dein-zeugs-test")
 
     _cli._warm_models(log, config)
 

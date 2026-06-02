@@ -7,10 +7,21 @@ from pathlib import Path
 
 from dein_zeugs.config import Config
 from dein_zeugs.paths import ProjectPaths, unprocessed_aired_audio
-from dein_zeugs.analysis import process_all_unprocessed
+from dein_zeugs.analysis import process_all_unprocessed, transcribe_all, analyze_all, cluster_all
 from dein_zeugs.embedding import EmbeddingModel
 from dein_zeugs.models import ensure_llm_model, ensure_whisper_model, patch_tqdm, clean_downloads, clean_outputs
 from dein_zeugs.report import render_report
+
+_SUBCOMMANDS = frozenset({
+    "initialize",
+    "fetch-models",
+    "transcribe",
+    "analyze",
+    "cluster",
+    "report",
+    "delete-downloads",
+    "delete-outputs",
+})
 
 
 def _reconfigure_streams() -> None:
@@ -22,7 +33,7 @@ def _reconfigure_streams() -> None:
 
 
 def _open_report(report_path: Path) -> None:
-    if os.environ.get("PODQ_NO_OPEN"):
+    if os.environ.get("DEIN_ZEUGS_NO_OPEN"):
         return
     try:
         subprocess.run(["open", str(report_path)], check=False)
@@ -43,9 +54,164 @@ def _render_getting_started(paths: ProjectPaths) -> Path:
     return report_path
 
 
-def main(argv=None):
-    _reconfigure_streams()
+def _load_config_optional(root_arg: str | None) -> Config:
+    if root_arg:
+        try:
+            return Config.load_or_create(Path(root_arg).resolve())
+        except Exception as e:
+            print(f"Warnung: Konfiguration konnte nicht geladen werden, verwende Standardwerte: {e}", file=sys.stderr)
+    return Config()
 
+
+def _resolve_root(root_arg: str | None) -> Path:
+    if root_arg:
+        return Path(root_arg).resolve()
+    return (Path.home() / "DeinZeugs").resolve()
+
+
+def _bootstrap(root_arg: str | None) -> tuple[Path, Config, ProjectPaths]:
+    """Resolve root, load config, and build ProjectPaths. Shared by subcommand handlers."""
+    root = _resolve_root(root_arg)
+    root.mkdir(parents=True, exist_ok=True)
+    config = Config.load_or_create(root)
+    paths = ProjectPaths(root, analysis_dir=config.analysis_dir, reports_dir=config.reports_dir)
+    return root, config, paths
+
+
+
+def _cmd_initialize(argv: list[str]) -> int:
+    import argparse
+    p = argparse.ArgumentParser(
+        prog="dein-zeugs initialize",
+        description="Verzeichnisstruktur und Konfigurationsdatei anlegen.",
+    )
+    p.add_argument("root", nargs="?", help="Wurzelverzeichnis (Standard: ~/DeinZeugs)")
+    args = p.parse_args(argv)
+
+    root, config, paths = _bootstrap(args.root)
+    paths.ensure_dirs()
+    print(f"Initialisiert: {root}")
+    return 0
+
+
+def _cmd_fetch_models(argv: list[str]) -> int:
+    import argparse
+    from dein_zeugs.util.logging import setup_logging
+    log = setup_logging()
+
+    p = argparse.ArgumentParser(
+        prog="dein-zeugs fetch-models",
+        description="Modelle herunterladen und in den Cache laden.",
+    )
+    p.add_argument("root", nargs="?", help="Wurzelverzeichnis für Konfiguration (optional)")
+    p.add_argument("--force", action="store_true", help="Bereits vorhandene Modelle erneut herunterladen")
+    p.add_argument("--skip-llm", action="store_true", help="LLM-Modell überspringen")
+    args = p.parse_args(argv)
+
+    config = _load_config_optional(args.root)
+    _warm_models(log, config, skip_llm=args.skip_llm, force=args.force)
+    return 0
+
+
+def _cmd_transcribe(argv: list[str]) -> int:
+    import argparse
+    p = argparse.ArgumentParser(
+        prog="dein-zeugs transcribe",
+        description="Audiodateien transkribieren und Transkripte speichern.",
+    )
+    p.add_argument("root", nargs="?", help="Wurzelverzeichnis (Standard: ~/DeinZeugs)")
+    p.add_argument("--force", action="store_true", help="Bereits transkribierte Dateien erneut verarbeiten")
+    args = p.parse_args(argv)
+
+    _root, config, paths = _bootstrap(args.root)
+    paths.analysis.mkdir(parents=True, exist_ok=True)
+    count = transcribe_all(paths, config, force=args.force)
+    print(f"Transkribiert: {count} Datei(en)")
+    return 0
+
+
+def _cmd_analyze(argv: list[str]) -> int:
+    import argparse
+    p = argparse.ArgumentParser(
+        prog="dein-zeugs analyze",
+        description="Transkribierte Dateien analysieren (Zusammenfassung, Schlüsselwörter, Einbettung).",
+    )
+    p.add_argument("root", nargs="?", help="Wurzelverzeichnis (Standard: ~/DeinZeugs)")
+    p.add_argument("--force", action="store_true", help="Bereits analysierte Dateien erneut verarbeiten")
+    args = p.parse_args(argv)
+
+    _root, config, paths = _bootstrap(args.root)
+    ensure_llm_model(config.llm_model_path)
+    embedding_model = EmbeddingModel(config.embedding_model)
+    count = analyze_all(paths, config, embedding_model, force=args.force)
+    print(f"Analysiert: {count} Datei(en)")
+    return 0
+
+
+def _cmd_cluster(argv: list[str]) -> int:
+    import argparse
+    p = argparse.ArgumentParser(
+        prog="dein-zeugs cluster",
+        description="Clustering neu berechnen und Bericht aktualisieren.",
+    )
+    p.add_argument("root", nargs="?", help="Wurzelverzeichnis (Standard: ~/DeinZeugs)")
+    args = p.parse_args(argv)
+
+    _root, config, paths = _bootstrap(args.root)
+    count = cluster_all(paths, config)
+    print(f"Gruppiert: {count} Datei(en)")
+    render_report(paths, config)
+    _open_report(paths.reports / "report.html")
+    return 0
+
+
+def _cmd_report(argv: list[str]) -> int:
+    import argparse
+    p = argparse.ArgumentParser(
+        prog="dein-zeugs report",
+        description="HTML-Bericht aus vorhandenen Analysedaten erstellen.",
+    )
+    p.add_argument("root", nargs="?", help="Wurzelverzeichnis (Standard: ~/DeinZeugs)")
+    args = p.parse_args(argv)
+
+    _root, config, paths = _bootstrap(args.root)
+    render_report(paths, config)
+    _open_report(paths.reports / "report.html")
+    return 0
+
+
+def _cmd_delete_downloads(argv: list[str]) -> int:
+    import argparse
+    p = argparse.ArgumentParser(
+        prog="dein-zeugs delete-downloads",
+        description="Heruntergeladene Modelldateien löschen.",
+    )
+    p.add_argument("root", nargs="?", help="Wurzelverzeichnis für Konfiguration (optional)")
+    p.add_argument("--yes", "-y", action="store_true", help="Bestätigung überspringen")
+    args = p.parse_args(argv)
+
+    config = _load_config_optional(args.root)
+    clean_downloads(config, yes=args.yes)
+    return 0
+
+
+def _cmd_delete_outputs(argv: list[str]) -> int:
+    import argparse
+    p = argparse.ArgumentParser(
+        prog="dein-zeugs delete-outputs",
+        description="Ausgabeverzeichnisse leeren (analysis, reports). inbox/ bleibt erhalten.",
+    )
+    p.add_argument("root", nargs="?", help="Wurzelverzeichnis (Standard: ~/DeinZeugs)")
+    p.add_argument("--yes", "-y", action="store_true", help="Bestätigung überspringen")
+    args = p.parse_args(argv)
+
+    _root, config, paths = _bootstrap(args.root)
+    clean_outputs(paths, yes=args.yes)
+    return 0
+
+
+
+def _run_orchestrate(argv: list[str]) -> int:
     import argparse
     from dein_zeugs.util.logging import setup_logging
     log = setup_logging()
@@ -60,40 +226,26 @@ def main(argv=None):
             "  {root}/reports/       HTML-Berichtausgabe\n"
             "  {root}/aired/         Bereits ausgestrahlte Episoden hierher verschieben\n"
             "\n"
-            "Ohne Angabe eines Wurzelverzeichnisses verwendet dein-zeugs standardmäßig ~/DeinZeugs/ und legt fehlende Unterverzeichnisse automatisch an."
+            "Ohne Angabe eines Wurzelverzeichnisses verwendet dein-zeugs standardmäßig ~/DeinZeugs/ und legt fehlende Unterverzeichnisse automatisch an.\n"
+            "\n"
+            "Verfügbare Unterbefehle:\n"
+            "  initialize          Verzeichnisstruktur anlegen\n"
+            "  fetch-models        Modelle herunterladen\n"
+            "  transcribe          Audiodateien transkribieren\n"
+            "  analyze             Transkripte analysieren\n"
+            "  cluster             Clustering neu berechnen und Bericht aktualisieren\n"
+            "  report              HTML-Bericht erstellen\n"
+            "  delete-downloads    Modelldateien löschen\n"
+            "  delete-outputs      Ausgabeverzeichnisse leeren"
         ),
     )
     parser.add_argument(
         "root", nargs="?",
         help="Wurzelverzeichnis des Projekts (Standard: ~/DeinZeugs). Wird inklusive Unterverzeichnissen automatisch angelegt.",
     )
-    parser.add_argument("--warm-models", action="store_true", help="Modell-Cache vorab aufwärmen und dann beenden")
-    parser.add_argument("--skip-llm", action="store_true", help="Beim Aufwärmen das LLM-Modell überspringen (nur mit --warm-models sinnvoll)")
-    parser.add_argument("--clean-downloads", action="store_true", help="Heruntergeladene Modelldateien löschen und dann beenden")
-    parser.add_argument("--clean-outputs", action="store_true", help="Ausgabeverzeichnisse leeren (analysis, reports), inbox/ bleibt erhalten")
-    parser.add_argument("--yes", "-y", action="store_true", help="Bestätigungsabfrage überspringen")
     args = parser.parse_args(argv)
 
-    # For model-management flags, load config from root if provided, else use defaults.
-    if args.warm_models or args.clean_downloads:
-        config = _load_config_optional(args.root)
-        if args.warm_models:
-            _warm_models(log, config, skip_llm=args.skip_llm)
-        else:
-            clean_downloads(config, yes=args.yes)
-        return 0
-
-    # Default the root to ~/DeinZeugs when not provided (no model-management flag was set above).
-    if args.root:
-        root = Path(args.root).resolve()
-    else:
-        root = (Path.home() / "DeinZeugs").resolve()
-
-    if args.clean_outputs:
-        config = _load_config_optional(str(root))
-        paths = ProjectPaths(root, analysis_dir=config.analysis_dir, reports_dir=config.reports_dir)
-        clean_outputs(paths, yes=args.yes)
-        return 0
+    root = _resolve_root(args.root)
 
     try:
         root.mkdir(parents=True, exist_ok=True)
@@ -101,8 +253,6 @@ def main(argv=None):
         paths = ProjectPaths(root, analysis_dir=config.analysis_dir, reports_dir=config.reports_dir)
         paths.ensure_dirs()
 
-        # If there is nothing to process (no inbox MP3s and no unanalyzed aired items),
-        # render the Getting Started welcome page and exit.
         mp3s = list(paths.inbox.glob("*.mp3")) if paths.inbox.exists() else []
         if not mp3s and not unprocessed_aired_audio(paths):
             report_path = _render_getting_started(paths)
@@ -114,9 +264,6 @@ def main(argv=None):
         lock_path = root / ".dein_zeugs.lock"
         lock_file = open(lock_path, "w")
         try:
-            # flock: if another instance holds it, exit immediately.
-            # Invariant: lock-holder completes at least one drain pass after any competing
-            # instance exits on lock-contention (competing instances exit before writing to inbox).
             fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
             log.info("Another dein-zeugs instance is running, exiting.")
@@ -132,6 +279,7 @@ def main(argv=None):
                 if processed == 0:
                     break
 
+            cluster_all(paths, config)
             render_report(paths, config)
             _open_report(paths.reports / "report.html")
             return 0
@@ -149,16 +297,34 @@ def main(argv=None):
         return 1
 
 
-def _load_config_optional(root_arg: str | None) -> Config:
-    if root_arg:
+
+def main(argv=None):
+    _reconfigure_streams()
+    if argv is None:
+        argv = sys.argv[1:]
+
+    if argv and argv[0] in _SUBCOMMANDS:
+        cmd, rest = argv[0], argv[1:]
+        dispatch = {
+            "initialize": _cmd_initialize,
+            "fetch-models": _cmd_fetch_models,
+            "transcribe": _cmd_transcribe,
+            "analyze": _cmd_analyze,
+            "cluster": _cmd_cluster,
+            "report": _cmd_report,
+            "delete-downloads": _cmd_delete_downloads,
+            "delete-outputs": _cmd_delete_outputs,
+        }
         try:
-            return Config.load_or_create(Path(root_arg).resolve())
+            return dispatch[cmd](rest)
         except Exception:
-            pass
-    return Config()
+            print(f"dein-zeugs {cmd} fehlgeschlagen:\n{traceback.format_exc()}", file=sys.stderr)
+            return 1
+
+    return _run_orchestrate(list(argv))
 
 
-def _warm_models(log, config: Config, skip_llm: bool = False):
+def _warm_models(log, config: Config, skip_llm: bool = False, force: bool = False):
     print("Modell-Cache wird vorbereitet...", flush=True)
 
     total_stages = 2 if skip_llm else 3
@@ -190,7 +356,7 @@ def _warm_models(log, config: Config, skip_llm: bool = False):
 
     print(f"[3/{total_stages}] LLM-Modell (~2 GB, wird beim ersten Mal heruntergeladen)...", flush=True)
     try:
-        ensure_llm_model(config.llm_model_path)
+        ensure_llm_model(config.llm_model_path, force=force)
         print(f"[3/{total_stages}] LLM-Modell bereit.", flush=True)
     except Exception as e:
         print(f"[3/{total_stages}] LLM-Modell fehlgeschlagen: {e}", flush=True)

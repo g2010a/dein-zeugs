@@ -1,50 +1,60 @@
 # dein-zeugs — Podcast-Fragenverwaltung
 
-Ein macOS-CLI-Werkzeug für Apple Silicon, das aufgezeichnete Hörerfragen transkribiert, nach Neuheit gegenüber bereits ausgestrahlten Fragen bewertet, Duplikate clustert und einen HTML-Bericht erstellt. Konzipiert für nicht-technische Podcasterinnen und Podcaster: MP3s hineinziehen, Desktop-Starter doppelklicken, Ergebnis im Browser lesen.
-
-Kein Python, kein Ollama, kein Quellcode-Checkout auf dem Zielrechner erforderlich — nur das Release-Archiv.
-
-## Installation (Endnutzer)
-
-1. Das neueste Release-Archiv von der [Releases-Seite](../../releases/latest) herunterladen. Es ist ein kleines Archiv (Binary plus zwei Skripte) — ca. 70 MB.
-2. Das Archiv durch Doppelklick entpacken. Es erscheint ein Ordner mit drei Dateien:
-   - `dein-zeugs` — das Programm
-   - `install.sh` — Installationsskript
-   - `Run dein-zeugs.command` — Desktop-Starter
-3. Den entpackten Ordner einmal im Terminal öffnen (Rechtsklick auf den Ordner → *Dienste* → *Neues Terminal im Ordner*) und ausführen:
-   ```bash
-   bash install.sh
-   ```
-4. Das Installationsskript erledigt folgendes:
-   - Kopiert `dein-zeugs` nach `/usr/local/bin/`
-   - Entfernt das macOS-Quarantäne-Bit, damit Gatekeeper das Programm zulässt
-   - Legt `Run dein-zeugs.command` auf dem Schreibtisch ab
-   - Lädt alle drei Modelldateien vorab herunter (~2,3 GB insgesamt: Whisper + Einbettungsmodell + LLM). Dieser Schritt erfolgt einmalig und ist **das einzige Mal**, dass eine Internetverbindung benötigt wird. Fortschrittsbalken erscheinen im Terminal.
-
-Nach der Installation kann der entpackte Ordner gelöscht werden. Das installierte Programm unter `/usr/local/bin/dein-zeugs` ist vollständig in sich geschlossen — es benötigt weder das Release-Archiv noch dieses Repository noch einen Python-Interpreter.
+Ein macOS-Werkzeug für Apple Silicon, das aufgezeichnete Hörerfragen transkribiert, nach Neuheit bewertet, Duplikate gruppiert und einen HTML-Bericht erstellt.
 
 **Voraussetzungen:** macOS 14+, Apple Silicon (arm64).
 
-## Tägliche Nutzung (nicht-technischer Arbeitsablauf)
+![screenshot of a DOS-like report UI](./images/DeinZeugs_screenshot.png)
 
-1. Die MP3-Aufnahmen der Hörerfragen in `~/DeinZeugs/inbox/` ablegen. (Der Ordner `DeinZeugs/` und seine Unterordner werden beim ersten Start automatisch angelegt.)
-2. **Run dein-zeugs.command** auf dem Schreibtisch doppelklicken.
-3. Ein Terminalfenster öffnet sich. dein-zeugs transkribiert und analysiert jede Datei. Der HTML-Bericht öffnet sich danach automatisch im Standard-Browser. Jeder Start rendert den Bericht neu, sodass er den aktuellen Inhalt von `inbox/` und `aired/` widerspiegelt.
-4. Sobald eine Frage in der Sendung ausgestrahlt wurde, die MP3 von `~/DeinZeugs/inbox/` in `~/DeinZeugs/aired/` verschieben. Beim nächsten Start dient `aired/` als Referenzkorpus — neue Fragen werden auf Neuheit gegenüber allem in `aired/` bewertet. Der Bericht selbst enthält file://-Links zu beiden Ordnern, sodass das Verschieben direkt im Finder erfolgen kann.
+---
 
-## Kommandozeilennutzung (optional)
+## Installation
 
-Für die Nutzung im Terminal:
+1. Das Release-Archiv von der [Releases-Seite](../../releases/latest) herunterladen (~70 MB) und entpacken. Es enthält zwei Dateien:
+   - `dein-zeugs` — das Programm
+   - `dein-zeugs.command` — der Starter (diesen doppelklicken)
+2. Beide Dateien zusammen an einen dauerhaften Ort verschieben (z. B. in den Ordner `Programme` im Finder).
+3. `dein-zeugs.command` doppelklicken → macOS fragt einmalig, ob die Datei geöffnet werden soll → **Öffnen** klicken.
+
+Beim ersten Start werden automatisch alle benötigten Modelle heruntergeladen (~2,3 GB). Danach ist keine Internetverbindung mehr nötig.
+
+---
+
+## Tägliche Nutzung
+
+1. MP3-Aufnahmen der Hörerfragen in `~/DeinZeugs/inbox/` ablegen.
+2. **dein-zeugs.command** doppelklicken.
+3. Der Bericht öffnet sich automatisch im Browser.
+
+**Ausgestrahlte Fragen:** Sobald eine Frage gesendet wurde, die MP3 aus `inbox/` in `~/DeinZeugs/aired/` verschieben. Beim nächsten Start dient `aired/` als Referenzkorpus — neue Fragen werden auf Neuheit gegenüber allem in `aired/` bewertet. Der Bericht enthält `file://`-Links zu beiden Ordnern, sodass das Verschieben direkt im Finder erfolgen kann.
+
+---
+
+## Kommandozeilennutzung
+
+Ohne Unterbefehl läuft der vollständige Durchlauf (transkribieren → analysieren → gruppieren → Bericht öffnen):
 
 ```
-dein-zeugs                          # verwendet ~/DeinZeugs/ als Standard
-dein-zeugs /pfad/zum/projektordner  # verwendet ein anderes Projektverzeichnis
-dein-zeugs --warm-models            # Modell-Cache vorab herunterladen und beenden
-dein-zeugs --warm-models --skip-llm # nur Whisper + Einbettungsmodell aufwärmen
-dein-zeugs --clean-outputs          # analysis/ und reports/ leeren (inbox/ bleibt erhalten)
-dein-zeugs --clean-downloads        # heruntergeladene Modelldateien löschen
-dein-zeugs --yes                    # Bestätigungsabfragen überspringen
+dein-zeugs [verzeichnis]
 ```
+
+Einzelne Schritte können auch separat ausgeführt werden:
+
+```
+dein-zeugs initialize        # Ordnerstruktur und config.toml anlegen
+dein-zeugs fetch-models      # Modelle herunterladen (~2,3 GB)
+dein-zeugs fetch-models --skip-llm   # nur Whisper + Einbettungsmodell
+dein-zeugs transcribe        # Audiodateien transkribieren
+dein-zeugs analyze           # Transkripte analysieren
+dein-zeugs cluster           # Gruppierung neu berechnen und Bericht öffnen
+dein-zeugs report            # Bericht aus vorhandenen Daten erstellen
+dein-zeugs delete-outputs    # analysis/ und reports/ leeren (inbox/ bleibt erhalten)
+dein-zeugs delete-downloads  # heruntergeladene Modelldateien löschen
+```
+
+Alle Unterbefehle akzeptieren ein optionales Verzeichnis als erstes Argument (Standard: `~/DeinZeugs`). `delete-outputs` und `delete-downloads` kennen außerdem `--yes`/`-y`, um Rückfragen zu überspringen. `fetch-models` und `transcribe`/`analyze` kennen `--force`, um bereits verarbeitete Dateien erneut zu verarbeiten.
+
+---
 
 ## Konfiguration
 
@@ -62,41 +72,45 @@ analysis_dir = "analysis"            # optionale Überschreibung
 reports_dir  = "reports"             # optionale Überschreibung
 
 [report]
-standouts_count = 10                 # Anzahl der Fragen mit höchster Neuheit im Highlights-Abschnitt
+standouts_count = 10                 # Anzahl der Fragen im Highlights-Abschnitt
 ```
+
+---
 
 ## Verzeichnisstruktur
 
 ```
-~/DeinZeugs/                         # Standardwurzel (wird automatisch angelegt)
-  inbox/                             # MP3-Fragenaufnahmen hier ablegen
-  aired/                             # MP3s hierher verschieben, sobald die Frage ausgestrahlt wurde
-  analysis/{stem}.yaml               # eine YAML-Datei pro Frage: Transkript, Zusammenfassung, Schlüsselwörter, Einbettung, Neuheitswerte
-  reports/report.html                # der gerenderte Bericht (öffnet sich nach jedem Start automatisch)
-  config.toml                        # wird automatisch mit Standardwerten angelegt
+~/DeinZeugs/
+  inbox/                    # MP3-Aufnahmen hier ablegen
+  aired/                    # MP3s hierher verschieben, sobald die Frage ausgestrahlt wurde
+  analysis/{stem}.yaml      # eine YAML-Datei pro Frage (Transkript, Analyse, Einbettung, Scores)
+  reports/report.html       # der gerenderte Bericht (öffnet sich nach jedem Start automatisch)
+  config.toml               # wird automatisch mit Standardwerten angelegt
 ```
 
 Modelldateien liegen außerhalb des Projektstammordners:
 
 ```
-~/.cache/huggingface/hub/    # Whisper- und Einbettungsmodell-Cache (~200 MB)
-~/.cache/fastembed/          # fastembed-Cache
-~/.dein_zeugs/models/        # LLM GGUF (~2 GB)
+~/.cache/huggingface/hub/   # Whisper- und Einbettungsmodell-Cache (~200 MB)
+~/.cache/fastembed/         # fastembed-Cache
+~/.dein_zeugs/models/       # LLM GGUF (~2 GB)
 ```
+
+---
 
 ## Was der Bericht zeigt
 
-Der Bericht beginnt mit dem Abschnitt **Highlights**: die N Fragen mit dem höchsten `standout_score = min(novelty_vs_aired, intra_batch_uniqueness)`. Jede Karte enthält einen farbigen Neuheitsbalken (grün ≥ 0,7, gelb 0,4–0,7, rot < 0,4) sowie file://-Links zu `inbox/` und `aired/` für den direkten Zugriff im Finder.
+Der Bericht zeigt alle Fragen in einer sortierbaren, durchsuchbaren Tabelle. Ausgestrahlte Fragen erscheinen gedimmt. Ein Neuheitswert (0–1) gibt an, wie einzigartig eine Frage ist — grün ≥ 0,7, gelb 0,4–0,7, rot < 0,4. Fragen lassen sich nach Cluster gruppieren; ähnliche Fragen werden dabei zusammengefasst.
 
-Darunter folgen aufklappbare Abschnitte: mögliche Wiederholungen, die vollständige Fragenübersicht, Ähnlichkeitscluster (aufgeteilt in „nur neu" — Duplikate innerhalb dieser Runde — und „gemischt" — Überschneidungen mit bereits ausgestrahlten Fragen), die ausgestrahlten Fragen und noch nicht verarbeitete Dateien.
+---
 
 ## Optional: Automator-Ordneraktion
 
-Wer dein-zeugs automatisch starten möchte, sobald eine Datei in `inbox/` abgelegt wird (anstatt den Desktop-Starter doppelzuklicken), kann eine macOS-Automator-Ordneraktion einrichten. Die Schritt-für-Schritt-Anleitung findet sich unter [`installer/com.dein_zeugs.folderaction.workflow.md`](installer/com.dein_zeugs.folderaction.workflow.md). Dies ist für erfahrene Nutzer gedacht; die meisten können diesen Abschnitt ignorieren.
+Wer dein-zeugs automatisch starten möchte, sobald eine Datei in `inbox/` abgelegt wird, kann eine macOS-Automator-Ordneraktion einrichten. Die Schritt-für-Schritt-Anleitung steht unter [`installer/com.dein_zeugs.folderaction.workflow.md`](installer/com.dein_zeugs.folderaction.workflow.md). Die meisten Nutzer können diesen Abschnitt ignorieren.
+
+---
 
 ## Aus dem Quellcode bauen (nur für Maintainer)
-
-Dieser Abschnitt richtet sich an diejenigen, die Releases erstellen. Endnutzer benötigen ihn nicht.
 
 Python 3.12 ist erforderlich; 3.14+ wird nicht unterstützt.
 
@@ -106,18 +120,12 @@ source .venv/bin/activate
 uv pip install -e ".[dev]"
 uv pip install pyinstaller
 make build            # erstellt dist/dein-zeugs (~70 MB)
-make package          # signiert das Binary
+make release          # signiert das Binary und packt dist/dein-zeugs-release.zip
 ```
 
-Für das Release-Archiv diese drei Dateien in einem flachen Verzeichnis zusammenstellen und als tar/zip packen:
+Das fertige Archiv (`dist/dein-zeugs-release.zip`) als GitHub-Release hochladen.
 
-```
-dist/dein-zeugs
-installer/install.sh
-installer/Run dein-zeugs.command
-```
-
-Das fertige Archiv als GitHub-Release hochladen. Endnutzer laden nur dieses herunter.
+---
 
 ## Entwicklung
 
