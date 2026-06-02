@@ -1,6 +1,29 @@
 # CHANGELOG
 
 
+## v0.3.2 (2026-06-02)
+
+### Bug Fixes
+
+- **release**: Distribute bare binary instead of zip archive
+  ([`e7f2597`](https://github.com/g2010a/dein-zeugs/commit/e7f259765335309f209b6e1148f76f5b7ef62e80))
+
+Now that the .command wrapper is gone the zip served no purpose — it wrapped a single file and added
+  an unnecessary extraction step. Upload dist/dein-zeugs directly to GitHub Releases. Update all
+  docs (README, Automator guide) to remove zip and .command references.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+- **release**: Drop .command wrapper, add Gatekeeper approval instructions
+  ([`1b5aa70`](https://github.com/g2010a/dein-zeugs/commit/1b5aa70774849a82877cc63a57b7de2f4545cd73))
+
+The .command file itself gets quarantined on download, so Gatekeeper blocks it before it can strip
+  quarantine from the binary — making the wrapper approach self-defeating. Revert to distributing a
+  single binary with clear right-click-Open and Privacy & Security fallback instructions.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+
 ## v0.3.1 (2026-06-02)
 
 ### Bug Fixes
