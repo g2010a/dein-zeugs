@@ -8,7 +8,14 @@ build:
 
 package: build
 	codesign --force --deep --sign - dist/dein-zeugs
-	@echo "Binary at dist/dein-zeugs — upload as GitHub Release asset."
+
+release: package
+	mkdir -p dist/release
+	cp dist/dein-zeugs dist/release/dein-zeugs
+	cp installer/dein-zeugs.command dist/release/dein-zeugs.command
+	chmod +x dist/release/dein-zeugs dist/release/dein-zeugs.command
+	cd dist && zip -r dein-zeugs-release.zip release/
+	@echo "Release archive: dist/dein-zeugs-release.zip"
 
 clean:
 	rm -rf dist/ build/work/ build/__pycache__/

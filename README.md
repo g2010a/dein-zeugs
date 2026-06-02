@@ -120,17 +120,10 @@ source .venv/bin/activate
 uv pip install -e ".[dev]"
 uv pip install pyinstaller
 make build            # erstellt dist/dein-zeugs (~70 MB)
-make package          # signiert das Binary
+make release          # signiert das Binary und packt dist/dein-zeugs-release.zip
 ```
 
-Das Release-Archiv enthält zwei Dateien:
-
-```
-dist/dein-zeugs
-installer/dein-zeugs.command
-```
-
-Als GitHub-Release hochladen. Endnutzer laden nur dieses herunter.
+Das fertige Archiv (`dist/dein-zeugs-release.zip`) als GitHub-Release hochladen.
 
 ---
 
